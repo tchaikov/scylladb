@@ -196,6 +196,10 @@ public:
     future<> open_data(sstable_open_config cfg = {}) noexcept;
     future<> update_info_for_opened_data(sstable_open_config cfg = {});
 
+    // Computes set of shards that own the SSTable.
+    // The method loads only the needed components for computing the set of shards.
+    future<std::vector<shard_id>> compute_owner_shards(const io_priority_class& pc = default_priority_class());
+
     class delayed_commit_changes {
         std::unordered_set<sstring> _dirs;
         friend class sstable;
