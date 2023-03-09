@@ -408,11 +408,6 @@ distributed_loader::make_sstables_available(sstables::sstable_directory& dir, sh
     co_return new_sstables.size();
 }
 
-sstables::shared_sstable make_sstable(replica::table& table, fs::path dir, int64_t generation_value) {
-    auto& sstm = table.get_sstables_manager();
-    return sstm.make_sstable(table.schema(), dir.native(), sstables::generation_from_value(generation_value), sstm.get_highest_supported_format(), sstables::sstable_format_types::big, gc_clock::now(), &error_handler_gen_for_upload_dir);
-}
-
 class sstable_generation_generator {
     // We still want to do our best to keep the generation numbers shard-friendly.
     // Each destination shard will manage its own generation counter.
@@ -464,16 +459,15 @@ distributed_loader::process_upload_dir(distributed<replica::database>& db, distr
                             uint64_t base = (last_generation.value() / smp::count + 1) * smp::count;
                             return std::make_unique<sstable_generation_generator>(base);
                         });
-        reshard(directory, db, ks, cf, [&global_table, upload, &gen] (shard_id shard) mutable {
-            // we need generation calculated by instance of cf at requested shard
+        auto make_sstable = [global_table, upload, &gen] (shard_id shard) {
+            auto& sstm = global_table->get_sstables_manager();
             auto generation = std::invoke(*gen[shard], shard);
-            return make_sstable(*global_table, upload, generation);
-        }, service::get_local_streaming_priority()).get();
-
-        reshape(directory, db, sstables::reshape_mode::strict, ks, cf, [global_table, upload, &gen] (shard_id shard) {
-            auto generation = std::invoke(*gen[shard], shard);
-            return make_sstable(*global_table, upload, generation);
-        }, [] (const sstables::shared_sstable&) { return true; }, service::get_local_streaming_priority()).get();
+            return sstm.make_sstable(global_table->schema(), upload.native(), generation, sstm.get_highest_supported_format(),
+                                     sstables::sstable_format_types::big, gc_clock::now(), &error_handler_gen_for_upload_dir);
+        };
+        reshard(directory, db, ks, cf, make_sstable, service::get_local_streaming_priority()).get();
+        reshape(directory, db, sstables::reshape_mode::strict, ks, cf, make_sstable,
+                [] (const sstables::shared_sstable&) { return true; }, service::get_local_streaming_priority()).get();
 
         // Move to staging directory to avoid clashes with future uploads. Unique generation number ensures no collisions.
         const bool use_view_update_path = db::view::check_needs_view_update_path(sys_dist_ks.local(), db.local().get_token_metadata(), *global_table, streaming::stream_reason::repair).get0();
