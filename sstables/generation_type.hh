@@ -45,6 +45,25 @@ public:
     }
     constexpr bool operator==(const generation_type& other) const noexcept { return _value == other._value; }
     constexpr std::strong_ordering operator<=>(const generation_type& other) const noexcept { return _value <=> other._value; }
+    // used by boost::lexical_cast(), which is in turn used by Boost::program_options
+    // to convert a command line option
+    friend std::istream& operator>>(std::istream& in, generation_type& generation) {
+        sstring token;
+        in >> token;
+        try {
+            // assume that the string representation of UUID always contains
+            // one or more "-"
+            if (auto dash = token.find('-'); dash != token.npos) {
+                generation = generation_type{utils::UUID{token}};
+            } else {
+                generation = generation_type{std::stol(token)};
+            }
+        }  catch (const std::invalid_argument&) {
+            in.setstate(std::ios_base::failbit);
+            throw;
+        }
+        return in;
+    }
 };
 
 constexpr generation_type generation_from_value(int64_t value) {
