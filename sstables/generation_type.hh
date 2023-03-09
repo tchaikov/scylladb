@@ -27,6 +27,17 @@ public:
 
     constexpr bool operator==(const generation_type& other) const noexcept { return _value == other._value; }
     constexpr std::strong_ordering operator<=>(const generation_type& other) const noexcept { return _value <=> other._value; }
+    friend std::istream& operator>>(std::istream& in, generation_type& generation) {
+        sstring token;
+        in >> token;
+        try {
+            generation = generation_type{std::stol(token)};
+        }  catch (const std::invalid_argument&) {
+            in.setstate(std::ios_base::failbit);
+            throw;
+        }
+        return in;
+    }
 };
 
 constexpr generation_type generation_from_value(int64_t value) {
