@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
+#include <iterator>
 #include <seastar/core/coroutine.hh>
 #include <seastar/coroutine/maybe_yield.hh>
 #include <seastar/coroutine/parallel_for_each.hh>
@@ -412,6 +413,22 @@ sstables::shared_sstable make_sstable(replica::table& table, fs::path dir, int64
     return sstm.make_sstable(table.schema(), dir.native(), sstables::generation_from_value(generation_value), sstm.get_highest_supported_format(), sstables::sstable_format_types::big, gc_clock::now(), &error_handler_gen_for_upload_dir);
 }
 
+class sstable_generation_generator {
+    // We still want to do our best to keep the generation numbers shard-friendly.
+    // Each destination shard will manage its own generation counter.
+    //
+    // operator() is called by multiple shards in parallel when performing reshard,
+    // so we have to use atomic<> here.
+    std::atomic<int64_t> _last_generation;
+public:
+    explicit sstable_generation_generator(int64_t last_generation)
+        : _last_generation(last_generation) {}
+    sstables::generation_type operator()(shard_id shard) {
+        auto v = _last_generation.fetch_add(smp::count, std::memory_order_relaxed);
+        return sstables::generation_from_value(v + shard);
+    }
+};
+
 future<>
 distributed_loader::process_upload_dir(distributed<replica::database>& db, distributed<db::system_distributed_keyspace>& sys_dist_ks,
         distributed<db::view::view_update_generator>& view_update_generator, sstring ks, sstring cf) {
@@ -440,25 +457,22 @@ distributed_loader::process_upload_dir(distributed<replica::database>& db, distr
         };
         process_sstable_dir(directory, flags).get();
 
-        auto generation = highest_generation_seen(directory).get0();
-        auto shard_generation_base = sstables::generation_value(generation) / smp::count + 1;
-
-        // We still want to do our best to keep the generation numbers shard-friendly.
-        // Each destination shard will manage its own generation counter.
-        std::vector<std::atomic<int64_t>> shard_gen(smp::count);
-        for (shard_id s = 0; s < smp::count; ++s) {
-            shard_gen[s].store(shard_generation_base * smp::count + s, std::memory_order_relaxed);
-        }
-
-        reshard(directory, db, ks, cf, [&global_table, upload, &shard_gen] (shard_id shard) mutable {
+        std::vector<std::unique_ptr<sstable_generation_generator>> gen;
+        std::generate_n(std::back_inserter(gen),
+                        smp::count,
+                        [last_generation = highest_generation_seen(directory).get0()] {
+                            uint64_t base = (last_generation.value() / smp::count + 1) * smp::count;
+                            return std::make_unique<sstable_generation_generator>(base);
+                        });
+        reshard(directory, db, ks, cf, [&global_table, upload, &gen] (shard_id shard) mutable {
             // we need generation calculated by instance of cf at requested shard
-            auto gen = shard_gen[shard].fetch_add(smp::count, std::memory_order_relaxed);
-            return make_sstable(*global_table, upload, gen);
+            auto generation = std::invoke(*gen[shard], shard);
+            return make_sstable(*global_table, upload, generation);
         }, service::get_local_streaming_priority()).get();
 
-        reshape(directory, db, sstables::reshape_mode::strict, ks, cf, [global_table, upload, &shard_gen] (shard_id shard) {
-            auto gen = shard_gen[shard].fetch_add(smp::count, std::memory_order_relaxed);
-            return make_sstable(*global_table, upload, gen);
+        reshape(directory, db, sstables::reshape_mode::strict, ks, cf, [global_table, upload, &gen] (shard_id shard) {
+            auto generation = std::invoke(*gen[shard], shard);
+            return make_sstable(*global_table, upload, generation);
         }, [] (const sstables::shared_sstable&) { return true; }, service::get_local_streaming_priority()).get();
 
         // Move to staging directory to avoid clashes with future uploads. Unique generation number ensures no collisions.
