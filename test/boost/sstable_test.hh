@@ -47,7 +47,7 @@ public:
     }
 
     static uint64_t calculate_generation_for_new_table(replica::column_family& cf) {
-        return generation_value(cf.calculate_generation_for_new_table());
+        return generation_value(cf.get_sstables_manager().calculate_generation_for_new_table());
     }
 };
 

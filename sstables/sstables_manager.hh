@@ -58,6 +58,7 @@ private:
     // if an sstable format was chosen earlier (and this choice was persisted
     // in the system table).
     sstable_version_types _format = sstable_version_types::mc;
+    std::optional<sstables::generation_generator<false>> _generation_generator;
 
     // _active and _undergoing_close are used in scylla-gdb.py to fetch all sstables
     // on current shard using "scylla sstables" command. If those fields are renamed,
@@ -85,6 +86,9 @@ public:
             io_error_handler_gen error_handler_gen = default_io_error_handler_gen(),
             size_t buffer_size = default_sstable_buffer_size);
 
+    shared_sstable make_sstable(schema_ptr schema,
+            sstring dir);
+
     std::unique_ptr<sstable_directory::components_lister> get_components_lister(std::filesystem::path dir);
 
     virtual sstable_writer_config configure_writer(sstring origin) const;
@@ -93,6 +97,18 @@ public:
 
     void set_format(sstable_version_types format) noexcept { _format = format; }
     sstables::sstable::version_types get_highest_supported_format() const noexcept { return _format; }
+
+    // update the sstable generation, making sure that new new sstables don't overwrite this one.
+    void update_sstables_known_generation(sstables::generation_type generation) {
+        auto base = sstables::generation_value(generation) / smp::count + 1;
+        _generation_generator.emplace(base * smp::count);
+    }
+    sstables::generation_type calculate_generation_for_new_table() {
+        assert(_generation_generator);
+        // FIXME: better way of ensuring we don't attempt to
+        // overwrite an existing table.
+        return std::invoke(*_generation_generator, this_shard_id());
+    }
 
     const locator::host_id& get_local_host_id() const;
 

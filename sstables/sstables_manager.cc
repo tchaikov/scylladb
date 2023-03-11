@@ -53,6 +53,17 @@ shared_sstable sstables_manager::make_sstable(schema_ptr schema,
     return make_lw_shared<sstable>(std::move(schema), std::move(dir), generation, v, f, get_large_data_handler(), *this, now, std::move(error_handler_gen), buffer_size);
 }
 
+shared_sstable sstables_manager::make_sstable(schema_ptr schema, sstring dir) {
+    return make_lw_shared<sstable>(std::move(schema), std::move(dir),
+                                   calculate_generation_for_new_table(),
+                                   _format,
+                                   sstables::sstable::format_types::big,
+                                   get_large_data_handler(), *this,
+                                   gc_clock::now(),
+                                   default_io_error_handler_gen(),
+                                   default_sstable_buffer_size);
+}
+
 sstable_writer_config sstables_manager::configure_writer(sstring origin) const {
     sstable_writer_config cfg;
 
