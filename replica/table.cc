@@ -190,6 +190,10 @@ table::add_memtables_to_reader_list(std::vector<flat_mutation_reader_v2>& reader
     }
 }
 
+void table::mark_ready_for_writes() {
+    _sstables_manager.update_sstables_known_generation(sstables::generation_from_value(0));
+}
+
 flat_mutation_reader_v2
 table::make_reader_v2(schema_ptr s,
                            reader_permit permit,
@@ -390,8 +394,7 @@ static bool belongs_to_other_shard(const std::vector<shard_id>& shards) {
 }
 
 sstables::shared_sstable table::make_sstable(sstring dir) {
-    auto& sstm = get_sstables_manager();
-    return sstm.make_sstable(_schema, dir, calculate_generation_for_new_table(), sstm.get_highest_supported_format(), sstables::sstable::format_types::big);
+    return get_sstables_manager().make_sstable(_schema, dir);
 }
 
 sstables::shared_sstable table::make_sstable() {

@@ -381,7 +381,7 @@ distributed_loader::make_sstables_available(sstables::sstable_directory& dir, sh
     auto new_sstables = std::vector<sstables::shared_sstable>();
 
     co_await dir.do_for_each_sstable([&table, needs_view_update, &new_sstables] (sstables::shared_sstable sst) -> future<> {
-        auto gen = table.calculate_generation_for_new_table();
+        auto gen = table.get_sstables_manager().calculate_generation_for_new_table();
         dblog.trace("Loading {} into {}, new generation {}", sst->get_filename(), needs_view_update ? "staging" : "base", gen);
         co_await sst->pick_up_from_upload(!needs_view_update ? sstables::normal_dir : sstables::staging_dir, gen);
             // When loading an imported sst, set level to 0 because it may overlap with existing ssts on higher levels.
@@ -572,7 +572,7 @@ public:
         }
 
         co_await smp::invoke_on_all([this] {
-            _global_table->update_sstables_known_generation(_highest_generation);
+            _global_table->get_sstables_manager().update_sstables_known_generation(_highest_generation);
             return _global_table->disable_auto_compaction();
         });
 
@@ -668,7 +668,7 @@ future<> table_populator::populate_subdir(sstring subdir, allow_offstrategy_comp
 
     co_await distributed_loader::reshard(directory, _db, _ks, _cf, [this, sstdir] (shard_id shard) mutable {
         auto gen = smp::submit_to(shard, [this] () {
-            return _global_table->calculate_generation_for_new_table();
+            return _global_table->get_sstables_manager().calculate_generation_for_new_table();
         }).get0();
 
         return make_sstable(*_global_table, sstdir, gen, _highest_version);
@@ -687,7 +687,7 @@ future<> table_populator::populate_subdir(sstring subdir, allow_offstrategy_comp
     };
 
     co_await distributed_loader::reshape(directory, _db, sstables::reshape_mode::relaxed, _ks, _cf, [this, sstdir] (shard_id shard) {
-        auto gen = _global_table->calculate_generation_for_new_table();
+        auto gen = _global_table->get_sstables_manager().calculate_generation_for_new_table();
         return make_sstable(*_global_table, sstdir, gen, _highest_version);
     }, eligible_for_reshape_on_boot, default_priority_class());
 
