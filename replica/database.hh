@@ -424,7 +424,6 @@ private:
     // Ensures that concurrent updates to sstable set will work correctly
     seastar::named_semaphore _sstable_set_mutation_sem = {1, named_semaphore_exception_factory{"sstable set mutation"}};
     mutable row_cache _cache; // Cache covers only sstables.
-    std::optional<sstables::sstable_generation_generator<sstables::is_shared::no>> _sstable_generation_generator;
 
     db::replay_position _highest_rp;
     db::replay_position _flush_rp;
@@ -556,18 +555,6 @@ private:
     future<> update_cache(compaction_group& cg, lw_shared_ptr<memtable> m, std::vector<sstables::shared_sstable> ssts);
     struct merge_comparator;
 
-    // update the sstable generation, making sure that new new sstables don't overwrite this one.
-    void update_sstables_known_generation(sstables::generation_type generation) {
-        auto base = sstables::generation_value(generation) / smp::count + 1;
-        _sstable_generation_generator.emplace(base * smp::count);
-    }
-
-    sstables::generation_type calculate_generation_for_new_table() {
-        assert(_sstable_generation_generator);
-        // FIXME: better way of ensuring we don't attempt to
-        // overwrite an existing table.
-        return std::invoke(*_sstable_generation_generator, this_shard_id());
-    }
 private:
     void rebuild_statistics();
 
@@ -642,9 +629,7 @@ public:
     // to a db in memory only, and if anybody is about to write to a CF, that was most
     // likely already called. We need to call this explicitly when we are sure we're ready
     // to issue disk operations safely.
-    void mark_ready_for_writes() {
-        update_sstables_known_generation(sstables::generation_from_value(0));
-    }
+    void mark_ready_for_writes();
 
     // Creates a mutation reader which covers all data sources for this column family.
     // Caller needs to ensure that column_family remains live (FIXME: relax this).
