@@ -47,6 +47,28 @@ constexpr int64_t generation_value(generation_type generation) {
     return generation.value();
 }
 
+template<bool shared>
+class generation_generator {
+    // We still want to do our best to keep the generation numbers shard-friendly.
+    // Each destination shard will manage its own generation counter.
+    //
+    // operator() is called by multiple shards in parallel when performing reshard,
+    // so we have to use atomic<> here.
+    std::conditional_t<shared, std::atomic<int64_t>, int64_t> _last_generation;
+public:
+    generation_generator(int64_t last_generation)
+        : _last_generation(last_generation) {}
+    sstables::generation_type operator()(shard_id shard) {
+        int64_t v;
+        if constexpr (shared) {
+            v = _last_generation.fetch_add(smp::count, std::memory_order_relaxed);
+        } else {
+            v = (_last_generation += smp::count);
+        }
+        return sstables::generation_from_value(v + shard);
+    }
+};
+
 } //namespace sstables
 
 namespace std {

@@ -408,28 +408,6 @@ distributed_loader::make_sstables_available(sstables::sstable_directory& dir, sh
     co_return new_sstables.size();
 }
 
-template<bool shared>
-class sstable_generation_generator {
-    // We still want to do our best to keep the generation numbers shard-friendly.
-    // Each destination shard will manage its own generation counter.
-    //
-    // operator() is called by multiple shards in parallel when performing reshard,
-    // so we have to use atomic<> here.
-    std::conditional_t<shared, std::atomic<int64_t>, int64_t> _last_generation;
-public:
-    sstable_generation_generator(int64_t last_generation)
-        : _last_generation(last_generation) {}
-    sstables::generation_type operator()(shard_id shard) {
-        int64_t v;
-        if constexpr (shared) {
-            v = _last_generation.fetch_add(smp::count, std::memory_order_relaxed);
-        } else {
-            v = (_last_generation += smp::count);
-        }
-        return sstables::generation_from_value(v + shard);
-    }
-};
-
 future<>
 distributed_loader::process_upload_dir(distributed<replica::database>& db, distributed<db::system_distributed_keyspace>& sys_dist_ks,
         distributed<db::view::view_update_generator>& view_update_generator, sstring ks, sstring cf) {
@@ -458,12 +436,12 @@ distributed_loader::process_upload_dir(distributed<replica::database>& db, distr
         };
         process_sstable_dir(directory, flags).get();
 
-        std::vector<std::unique_ptr<sstable_generation_generator<true>>> gen;
+        std::vector<std::unique_ptr<sstables::generation_generator<true>>> gen;
         std::generate_n(std::back_inserter(gen),
                         smp::count,
                         [last_generation = highest_generation_seen(directory).get0()] {
                             uint64_t base = (last_generation.value() / smp::count + 1) * smp::count;
-                            return std::make_unique<sstable_generation_generator<true>>(base);
+                            return std::make_unique<sstables::generation_generator<true>>(base);
                         });
         auto make_sstable = [global_table, upload, &gen] (shard_id shard) {
             auto& sstm = global_table->get_sstables_manager();

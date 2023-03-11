@@ -424,7 +424,7 @@ private:
     // Ensures that concurrent updates to sstable set will work correctly
     seastar::named_semaphore _sstable_set_mutation_sem = {1, named_semaphore_exception_factory{"sstable set mutation"}};
     mutable row_cache _cache; // Cache covers only sstables.
-    std::optional<int64_t> _sstable_generation = {};
+    std::optional<sstables::generation_generator<false>> _sstable_generation_generator;
 
     db::replay_position _highest_rp;
     db::replay_position _flush_rp;
@@ -558,17 +558,15 @@ private:
 
     // update the sstable generation, making sure that new new sstables don't overwrite this one.
     void update_sstables_known_generation(sstables::generation_type generation) {
-        if (!_sstable_generation) {
-            _sstable_generation = 1;
-        }
-        _sstable_generation = std::max<uint64_t>(*_sstable_generation, sstables::generation_value(generation) / smp::count + 1);
+        auto base = sstables::generation_value(generation) / smp::count + 1;
+        _sstable_generation_generator.emplace(base * smp::count);
     }
 
     sstables::generation_type calculate_generation_for_new_table() {
-        assert(_sstable_generation);
+        assert(_sstable_generation_generator);
         // FIXME: better way of ensuring we don't attempt to
         // overwrite an existing table.
-        return sstables::generation_from_value((*_sstable_generation)++ * smp::count + this_shard_id());
+        return std::invoke(*_sstable_generation_generator, this_shard_id());
     }
 private:
     void rebuild_statistics();
