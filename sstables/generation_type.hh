@@ -13,6 +13,8 @@
 #include <compare>
 #include <limits>
 #include <iostream>
+#include <type_traits>
+#include <seastar/core/smp.hh>
 #include <seastar/core/sstring.hh>
 
 namespace sstables {
@@ -35,6 +37,33 @@ constexpr generation_type generation_from_value(int64_t value) {
 constexpr int64_t generation_value(generation_type generation) {
     return generation.value();
 }
+
+struct is_shared {
+    using yes = std::true_type;
+    using no = std::false_type;
+};
+
+template<typename IsShared>
+class sstable_generation_generator {
+    // We still want to do our best to keep the generation numbers shard-friendly.
+    // Each destination shard will manage its own generation counter.
+    //
+    // operator() is called by multiple shards in parallel when performing reshard,
+    // so we have to use atomic<> here.
+    std::conditional_t<IsShared::value, std::atomic<int64_t>, int64_t> _last_generation;
+public:
+    explicit sstable_generation_generator(int64_t last_generation)
+        : _last_generation(last_generation) {}
+    sstables::generation_type operator()(seastar::shard_id shard) {
+        int64_t v;
+        if constexpr (IsShared::value) {
+            v = _last_generation.fetch_add(seastar::smp::count, std::memory_order_relaxed);
+        } else {
+            v = (_last_generation += seastar::smp::count);
+        }
+        return sstables::generation_from_value(v + shard);
+    }
+};
 
 } //namespace sstables
 
