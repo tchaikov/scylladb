@@ -112,6 +112,7 @@ public:
     gms::feature large_collection_detection { *this, "LARGE_COLLECTION_DETECTION"sv };
     gms::feature secondary_indexes_on_static_columns { *this, "SECONDARY_INDEXES_ON_STATIC_COLUMNS"sv };
     gms::feature tablets { *this, "TABLETS"sv };
+    gms::feature uuid_sstable_identifiers { *this, "UUID_SSTABLE_IDENTIFIERS"sv };
 
 public:
 
