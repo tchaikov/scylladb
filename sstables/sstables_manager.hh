@@ -100,8 +100,12 @@ public:
 
     // update the sstable generation, making sure that new new sstables don't overwrite this one.
     void update_sstables_known_generation(sstables::generation_type generation) {
-        auto base = sstables::generation_value(generation) / smp::count + 1;
-        _generation_generator.emplace(base * smp::count);
+        if (generation.is_uuid_based()) {
+            auto base = generation.value<int64_t>() / smp::count + 1;
+            _generation_generator.emplace(base * smp::count);
+        } else {
+            _generation_generator.emplace(1);
+        }
     }
     sstables::generation_type calculate_generation_for_new_table() {
         assert(_generation_generator);

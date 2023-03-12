@@ -13,25 +13,49 @@
 #include <compare>
 #include <limits>
 #include <iostream>
+#include <variant>
 #include <seastar/core/sstring.hh>
 
 namespace sstables {
 
 class generation_type {
-    int64_t _value;
+    std::variant<utils::UUID, int64_t> _value;
 public:
     generation_type() = delete;
 
     explicit constexpr generation_type(int64_t value) noexcept: _value(value) {}
-    constexpr int64_t value() const noexcept { return _value; }
+    explicit constexpr generation_type(utils::UUID value) noexcept: _value(value) {}
 
+    template<typename T>
+    constexpr T value() const noexcept {
+        return std::get<T>(_value);
+    }
+    explicit constexpr operator int64_t() const noexcept {
+        assert(_value.index() == 0);
+        return std::get<int64_t>(_value);
+    }
+    explicit constexpr operator utils::UUID() const noexcept {
+        assert(_value.index() == 1);
+        return std::get<utils::UUID>(_value);
+    }
+    constexpr bool is_uuid_based() const noexcept {
+        return _value.index() == 1;
+    }
     constexpr bool operator==(const generation_type& other) const noexcept { return _value == other._value; }
     constexpr std::strong_ordering operator<=>(const generation_type& other) const noexcept { return _value <=> other._value; }
+    // used by boost::lexical_cast(), which is in turn used by Boost::program_options
+    // to convert a command line option
     friend std::istream& operator>>(std::istream& in, generation_type& generation) {
         sstring token;
         in >> token;
         try {
-            generation = generation_type{std::stol(token)};
+            // assume that the string representation of UUID always contains
+            // one or more "-"
+            if (auto dash = token.find('-'); dash != token.npos) {
+                generation = generation_type{utils::UUID{token}};
+            } else {
+                generation = generation_type{std::stol(token)};
+            }
         }  catch (const std::invalid_argument&) {
             in.setstate(std::ios_base::failbit);
             throw;
@@ -42,9 +66,6 @@ public:
 
 constexpr generation_type generation_from_value(int64_t value) {
     return generation_type{value};
-}
-constexpr int64_t generation_value(generation_type generation) {
-    return generation.value();
 }
 
 template<bool shared>
@@ -75,7 +96,11 @@ namespace std {
 template <>
 struct hash<sstables::generation_type> {
     size_t operator()(const sstables::generation_type& generation) const noexcept {
-        return hash<int64_t>{}(generation.value());
+        if (generation.is_uuid_based()) {
+            return hash<utils::UUID>{}(utils::UUID(generation));
+        } else {
+            return hash<int64_t>{}(int64_t(generation));
+        }
     }
 };
 
@@ -95,6 +120,10 @@ template <>
 struct fmt::formatter<sstables::generation_type> : fmt::formatter<std::string_view> {
     template <typename FormatContext>
     auto format(const sstables::generation_type& generation, FormatContext& ctx) const {
-        return fmt::format_to(ctx.out(), "{}", generation.value());
+        if (generation.is_uuid_based()) {
+            return fmt::format_to(ctx.out(), "{}", utils::UUID(generation));
+        } else {
+            return fmt::format_to(ctx.out(), "{}", int64_t(generation));
+        }
     }
 };

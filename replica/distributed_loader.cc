@@ -440,7 +440,7 @@ distributed_loader::process_upload_dir(distributed<replica::database>& db, distr
         std::generate_n(std::back_inserter(gen),
                         smp::count,
                         [last_generation = highest_generation_seen(directory).get0()] {
-                            uint64_t base = (last_generation.value() / smp::count + 1) * smp::count;
+                            uint64_t base = (int64_t(last_generation) / smp::count + 1) * smp::count;
                             return std::make_unique<sstables::generation_generator<true>>(base);
                         });
         auto make_sstable = [global_table, upload, &gen] (shard_id shard) {
