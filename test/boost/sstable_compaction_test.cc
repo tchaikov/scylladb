@@ -488,7 +488,7 @@ static void add_sstable_for_leveled_test(test_env& env, lw_shared_ptr<replica::c
     assert(sst->data_size() == fake_data_size);
     assert(sst->get_sstable_level() == sstable_level);
     assert(sst->get_stats_metadata().max_timestamp == max_timestamp);
-    assert(generation_value(sst->generation()) == gen);
+    assert(int64_t(sst->generation()) == gen);
     column_family_test(cf).add_sstable(sst).get();
 }
 
@@ -518,9 +518,9 @@ static bool key_range_overlaps(table_for_tests& cf, const dht::decorated_key& a,
 
 static shared_sstable get_sstable(const lw_shared_ptr<replica::column_family>& cf, int64_t generation) {
     auto sstables = cf->get_sstables();
-    auto entry = boost::range::find_if(*sstables, [generation] (shared_sstable sst) { return generation == generation_value(sst->generation()); });
+    auto entry = boost::range::find_if(*sstables, [generation] (shared_sstable sst) { return generation == int64_t(sst->generation()); });
     assert(entry != sstables->end());
-    assert(generation_value((*entry)->generation()) == generation);
+    assert(int64_t((*entry)->generation()) == generation);
     return *entry;
 }
 
@@ -565,8 +565,8 @@ SEASTAR_TEST_CASE(leveled_01) {
 
     std::set<unsigned long> gens = { 1, 2 };
     for (auto& sst : candidate.sstables) {
-        BOOST_REQUIRE(gens.contains(generation_value(sst->generation())));
-        gens.erase(generation_value(sst->generation()));
+        BOOST_REQUIRE(gens.contains(int64_t(sst->generation())));
+        gens.erase(int64_t(sst->generation()));
         BOOST_REQUIRE(sst->get_sstable_level() == 0);
     }
     BOOST_REQUIRE(gens.empty());
@@ -618,8 +618,8 @@ SEASTAR_TEST_CASE(leveled_02) {
 
     std::set<unsigned long> gens = { 1, 2, 3 };
     for (auto& sst : candidate.sstables) {
-        BOOST_REQUIRE(gens.contains(generation_value(sst->generation())));
-        gens.erase(generation_value(sst->generation()));
+        BOOST_REQUIRE(gens.contains(int64_t(sst->generation())));
+        gens.erase(int64_t(sst->generation()));
         BOOST_REQUIRE(sst->get_sstable_level() == 0);
     }
     BOOST_REQUIRE(gens.empty());
@@ -673,7 +673,7 @@ SEASTAR_TEST_CASE(leveled_03) {
 
     std::set<std::pair<unsigned long, uint32_t>> gen_and_level = { {1,0}, {2,0}, {3,1} };
     for (auto& sst : candidate.sstables) {
-        std::pair<unsigned long, uint32_t> pair(generation_value(sst->generation()), sst->get_sstable_level());
+        std::pair<unsigned long, uint32_t> pair(int64_t(sst->generation()), sst->get_sstable_level());
         auto it = gen_and_level.find(pair);
         BOOST_REQUIRE(it != gen_and_level.end());
         BOOST_REQUIRE(sst->get_sstable_level() == it->second);
@@ -797,7 +797,7 @@ SEASTAR_TEST_CASE(leveled_06) {
     BOOST_REQUIRE(candidate.sstables.size() == 1);
     auto& sst = (candidate.sstables)[0];
     BOOST_REQUIRE(sst->get_sstable_level() == 1);
-    BOOST_REQUIRE(generation_value(sst->generation()) == 1);
+    BOOST_REQUIRE(int64_t(sst->generation()) == 1);
 
     cf.stop_and_keep_alive().get();
   });
@@ -857,7 +857,7 @@ SEASTAR_TEST_CASE(leveled_invariant_fix) {
     BOOST_REQUIRE(candidate.level == 1);
     BOOST_REQUIRE(candidate.sstables.size() == size_t(sstables_no-1));
     BOOST_REQUIRE(boost::algorithm::all_of(candidate.sstables, [] (auto& sst) {
-        return generation_value(sst->generation()) != 0;
+        return int64_t(sst->generation()) != 0;
     }));
 
     cf.stop_and_keep_alive().get();
@@ -898,7 +898,7 @@ SEASTAR_TEST_CASE(leveled_stcs_on_L0) {
         BOOST_REQUIRE(candidate.level == 0);
         BOOST_REQUIRE(candidate.sstables.size() == size_t(l0_sstables_no));
         BOOST_REQUIRE(boost::algorithm::all_of(candidate.sstables, [] (auto& sst) {
-            return generation_value(sst->generation()) != 0;
+            return int64_t(sst->generation()) != 0;
         }));
     }
     {
@@ -965,7 +965,7 @@ SEASTAR_TEST_CASE(check_overlapping) {
 
     auto overlapping_sstables = leveled_manifest::overlapping(*cf.schema(), compacting, uncompacting);
     BOOST_REQUIRE(overlapping_sstables.size() == 1);
-    BOOST_REQUIRE(generation_value(overlapping_sstables.front()->generation()) == 4);
+    BOOST_REQUIRE(int64_t(overlapping_sstables.front()->generation()) == 4);
 
     cf.stop_and_keep_alive().get();
   });
@@ -1205,7 +1205,7 @@ SEASTAR_TEST_CASE(sstable_rewrite) {
             return compact_sstables(sstables::compaction_descriptor(std::move(sstables), default_priority_class()), *cf, creator).then([&env, s, key, new_tables] (auto) {
                 BOOST_REQUIRE(new_tables->size() == 1);
                 auto newsst = (*new_tables)[0];
-                BOOST_REQUIRE(generation_value(newsst->generation()) == 52);
+                BOOST_REQUIRE(int64_t(newsst->generation()) == 52);
                 auto reader = make_lw_shared<flat_mutation_reader_v2>(sstable_reader(newsst, s, env.make_reader_permit()));
                 return (*reader)().then([s, reader, key] (mutation_fragment_v2_opt m) {
                     BOOST_REQUIRE(m);
@@ -1323,7 +1323,7 @@ SEASTAR_TEST_CASE(get_fully_expired_sstables_test) {
         auto expired = get_fully_expired_sstables(cf.as_table_state(), compacting, /*gc before*/gc_clock::from_time_t(25) + cf->schema()->gc_grace_seconds());
         BOOST_REQUIRE(expired.size() == 1);
         auto expired_sst = *expired.begin();
-        BOOST_REQUIRE(generation_value(expired_sst->generation()) == 1);
+        BOOST_REQUIRE(int64_t(expired_sst->generation()) == 1);
     }
   });
 }
@@ -1361,7 +1361,7 @@ SEASTAR_TEST_CASE(compaction_with_fully_expired_table) {
         auto expired = get_fully_expired_sstables(cf.as_table_state(), ssts, gc_clock::now());
         BOOST_REQUIRE(expired.size() == 1);
         auto expired_sst = *expired.begin();
-        BOOST_REQUIRE(generation_value(expired_sst->generation()) == 1);
+        BOOST_REQUIRE(int64_t(expired_sst->generation()) == 1);
 
         auto ret = compact_sstables(sstables::compaction_descriptor(ssts, default_priority_class()), cf, sst_gen).get0();
         BOOST_REQUIRE(ret.new_sstables.empty());
@@ -1401,7 +1401,7 @@ SEASTAR_TEST_CASE(basic_date_tiered_strategy_test) {
     auto sstables = manifest.get_next_sstables(cf.as_table_state(), candidates, gc_before);
     BOOST_REQUIRE(sstables.size() == 4);
     for (auto& sst : sstables) {
-        BOOST_REQUIRE(generation_value(sst->generation()) != (min_threshold + 1));
+        BOOST_REQUIRE(int64_t(sst->generation()) != (min_threshold + 1));
     }
 
     cf.stop_and_keep_alive().get();
@@ -1453,7 +1453,7 @@ SEASTAR_TEST_CASE(date_tiered_strategy_test_2) {
     auto sstables = manifest.get_next_sstables(cf.as_table_state(), candidates, gc_before);
     std::unordered_set<int64_t> gens;
     for (auto sst : sstables) {
-        gens.insert(generation_value(sst->generation()));
+        gens.insert(int64_t(sst->generation()));
     }
     BOOST_REQUIRE(sstables.size() == size_t(min_threshold + 1));
     BOOST_REQUIRE(gens.contains(min_threshold + 1));
@@ -2928,14 +2928,14 @@ SEASTAR_TEST_CASE(sstable_run_based_compaction_test) {
             BOOST_REQUIRE(old_sstables.size() == 1);
             BOOST_REQUIRE(new_sstables.size() == 1);
             // check that sstable replacement follows token order
-            BOOST_REQUIRE(*expected_sst == generation_value(old_sstables.front()->generation()));
+            BOOST_REQUIRE(*expected_sst == int64_t(old_sstables.front()->generation()));
             expected_sst++;
             // check that previously released sstables were already closed
-            if (generation_value(old_sstables.front()->generation()) % 4 == 0) {
+            if (int64_t(old_sstables.front()->generation()) % 4 == 0) {
                 // Due to performance reasons, sstables are not released immediately, but in batches.
                 // At the time of writing, mutation_reader_merger releases it's sstable references
                 // in batches of 4. That's why we only perform this check every 4th sstable. 
-                BOOST_REQUIRE(*closed_sstables_tracker == generation_value(old_sstables.front()->generation()));
+                BOOST_REQUIRE(*closed_sstables_tracker == int64_t(old_sstables.front()->generation()));
             }
 
             do_replace(old_sstables, new_sstables);
@@ -2964,7 +2964,7 @@ SEASTAR_TEST_CASE(sstable_run_based_compaction_test) {
 
             BOOST_REQUIRE(desc.sstables.size() == expected_input);
             auto sstable_run = boost::copy_range<std::set<int64_t>>(desc.sstables
-                | boost::adaptors::transformed([] (auto& sst) { return generation_value(sst->generation()); }));
+                | boost::adaptors::transformed([] (auto& sst) { return int64_t(sst->generation()); }));
             auto expected_sst = sstable_run.begin();
             auto closed_sstables_tracker = sstable_run.begin();
             auto replacer = [&] (sstables::compaction_completion_desc desc) {
@@ -3124,15 +3124,15 @@ SEASTAR_TEST_CASE(partial_sstable_run_filtered_out_test) {
         auto partial_sstable_run_sst = make_sstable_easy(env, make_flat_mutation_reader_from_mutations_v2(s, env.make_reader_permit(), { std::move(mut) }), sst_cfg);
 
         column_family_test(cf).add_sstable(partial_sstable_run_sst).get();
-        column_family_test::update_sstables_known_generation(*cf, generation_value(partial_sstable_run_sst->generation()));
+        column_family_test::update_sstables_known_generation(*cf, int64_t(partial_sstable_run_sst->generation()));
 
         auto generation_exists = [&cf] (int64_t generation) {
             auto sstables = cf->get_sstables();
-            auto entry = boost::range::find_if(*sstables, [generation] (shared_sstable sst) { return generation == generation_value(sst->generation()); });
+            auto entry = boost::range::find_if(*sstables, [generation] (shared_sstable sst) { return generation == int64_t(sst->generation()); });
             return entry != sstables->end();
         };
 
-        BOOST_REQUIRE(generation_exists(generation_value(partial_sstable_run_sst->generation())));
+        BOOST_REQUIRE(generation_exists(int64_t(partial_sstable_run_sst->generation())));
 
         // register partial sstable run
         auto cm_test = compaction_manager_test(cf.get_compaction_manager());
@@ -3141,7 +3141,7 @@ SEASTAR_TEST_CASE(partial_sstable_run_filtered_out_test) {
         }).get();
 
         // make sure partial sstable run has none of its fragments compacted.
-        BOOST_REQUIRE(generation_exists(generation_value(partial_sstable_run_sst->generation())));
+        BOOST_REQUIRE(generation_exists(int64_t(partial_sstable_run_sst->generation())));
     });
 }
 
@@ -4054,7 +4054,7 @@ SEASTAR_TEST_CASE(twcs_reshape_with_disjoint_set_test) {
                 //
                 if (i % 2 == 0) {
                     sst = make_sstable_containing(sst_gen, mutations_for_small_files);
-                    generations_for_small_files.insert(generation_value(sst->generation()));
+                    generations_for_small_files.insert(int64_t(sst->generation()));
                 } else {
                     sst = make_sstable_containing(sst_gen, mutations_for_big_files);
                 }
@@ -4066,7 +4066,7 @@ SEASTAR_TEST_CASE(twcs_reshape_with_disjoint_set_test) {
                 BOOST_REQUIRE_EQUAL(ret.sstables.size(), uint64_t(s->max_compaction_threshold()));
                 // fail if any file doesn't belong to set of small files
                 bool has_big_sized_files = boost::algorithm::any_of(ret.sstables, [&] (const sstables::shared_sstable& sst) {
-                    return !generations_for_small_files.contains(generation_value(sst->generation()));
+                    return !generations_for_small_files.contains(int64_t(sst->generation()));
                 });
                 BOOST_REQUIRE(!has_big_sized_files);
             };
@@ -4353,7 +4353,7 @@ SEASTAR_TEST_CASE(compound_sstable_set_incremental_selector_test) {
             auto sstables = selector.select(key).sstables;
             BOOST_REQUIRE_EQUAL(sstables.size(), expected_gens.size());
             for (auto& sst : sstables) {
-                BOOST_REQUIRE(expected_gens.contains(generation_value(sst->generation())));
+                BOOST_REQUIRE(expected_gens.contains(int64_t(sst->generation())));
             }
         };
 
@@ -4847,7 +4847,7 @@ SEASTAR_TEST_CASE(test_large_partition_splitting_on_compaction) {
         position_in_partition::tri_compare pos_tri_cmp(*s);
 
         for (auto& sst : ret.new_sstables) {
-            sst = env.reusable_sst(s, sst->generation().value()).get0();
+            sst = env.reusable_sst(s, int64_t(sst->generation())).get0();
             BOOST_REQUIRE(sst->may_have_partition_tombstones());
 
             auto reader = sstable_reader(sst, s, env.make_reader_permit());

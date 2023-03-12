@@ -41,7 +41,7 @@ static schema_ptr get_schema(unsigned shard_count, unsigned sharding_ignore_msb_
 
 // Asserts that sstable::compute_owner_shards(...) produces correct results.
 static future<> assert_sstable_computes_correct_owners(test_env& env, const sstables::shared_sstable& base_sst, sstring dir) {
-    auto sst = env.make_sstable(base_sst->get_schema(), dir, base_sst->generation().value(), base_sst->get_version());
+    auto sst = env.make_sstable(base_sst->get_schema(), dir, int64_t(base_sst->generation()), base_sst->get_version());
     co_await sst->load_owner_shards();
     BOOST_REQUIRE_EQUAL(sst->get_shards_for_this_sstable(), base_sst->get_shards_for_this_sstable());
 }
@@ -111,7 +111,7 @@ void run_sstable_resharding_test() {
     std::unordered_set<shard_id> processed_shards;
 
     for (auto& sstable : new_sstables) {
-        auto new_sst = env.reusable_sst(s, tmp.path().string(), generation_value(sstable->generation()),
+        auto new_sst = env.reusable_sst(s, tmp.path().string(), int64_t(sstable->generation()),
             version, sstables::sstable::format_types::big).get0();
         filter_fname = sstables::test(new_sst).filename(component_type::Filter);
         bloom_filter_size_after += file_size(filter_fname).get0();
@@ -190,7 +190,7 @@ SEASTAR_TEST_CASE(sstable_is_shared_correctness) {
             BOOST_REQUIRE(!sst->is_shared());
 
             auto all_shards_s = get_schema(smp::count, cfg->murmur3_partitioner_ignore_msb_bits());
-            sst = env.reusable_sst(all_shards_s, tmp.path().string(), generation_value(sst->generation()), version).get0();
+            sst = env.reusable_sst(all_shards_s, tmp.path().string(), int64_t(sst->generation()), version).get0();
             BOOST_REQUIRE(smp::count == 1 || sst->is_shared());
             BOOST_REQUIRE(sst->get_shards_for_this_sstable().size() == smp::count);
             assert_sstable_computes_correct_owners(env, sst, tmp.path().string()).get();
