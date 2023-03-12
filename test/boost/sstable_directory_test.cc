@@ -108,7 +108,7 @@ highest_generation_seen(sharded<sstables::sstable_directory>& dir) {
     return dir.map_reduce0(std::mem_fn(&sstable_directory::highest_generation_seen), generation_from_value(0), [] (generation_type a, generation_type b) {
         return std::max<generation_type>(a, b);
     }).then([] (generation_type gen) {
-        return generation_value(gen);
+        return int64_t(gen);
     });
 }
 
