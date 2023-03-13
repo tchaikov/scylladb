@@ -114,16 +114,42 @@ add_scylla_test(range_test
   KIND BOOST)
 add_scylla_test(range_tombstone_list_test
   KIND BOOST)
+add_scylla_test(reusable_buffer_test
+  KIND BOOST)
+add_scylla_test(restrictions_test
+  KIND BOOST)
+add_scylla_test(repair_test
+  KIND BOOST)
+add_scylla_test(role_manager_test
+  KIND BOOST)
+add_scylla_test(row_cache_test
+  KIND BOOST)
+add_scylla_test(rust_test
+  KIND BOOST)
+add_scylla_test(radix_tree_test
+  KIND BOOST)
+add_scylla_test(reader_concurrency_semaphore_test
+  KIND BOOST)
+add_scylla_test(result_utils_test
+  KIND BOOST)
+add_scylla_test(rate_limiter_test
+  KIND BOOST)
 add_scylla_test(serialization_test
   KIND BOOST)
 add_scylla_test(small_vector_test
   KIND BOOST)
+add_scylla_test(summary_test
+  KIND BOOST)
 add_scylla_test(top_k_test
   KIND BOOST)
+add_scylla_test(tracing_test
+  KIND SEASTAR)
 add_scylla_test(transport_test
+  KIND SEASTAR)
+add_scylla_test(type_json_test
   KIND BOOST)
 add_scylla_test(types_test
-  KIND BOOST)
+  KIND SEASTAR)
 add_scylla_test(vint_serialization_test
   KIND BOOST
   LIBRARIES
@@ -139,7 +165,7 @@ add_scylla_test(user_function_test
   KIND SEASTAR
   LIBRARIES idl)
 add_scylla_test(user_types_test
-  KIND BOOST)
+  KIND SEASTAR)
 add_scylla_test(expr_test
   KIND BOOST
   LIBRARIES cql3)
