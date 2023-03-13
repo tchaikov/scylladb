@@ -504,7 +504,6 @@ To start the scylla server proper, simply invoke as: scylla server (or just scyl
     // TODO : default, always read?
     init("options-file", bpo::value<sstring>(), "configuration file (i.e. <SCYLLA_HOME>/conf/scylla.yaml)");
 
-    configurable::append_all(*cfg, init);
     cfg->add_options(init);
 
     // If --version is requested, print it out and exit immediately to avoid
@@ -581,7 +580,6 @@ To start the scylla server proper, simply invoke as: scylla server (or just scyl
 
             ::stop_signal stop_signal; // we can move this earlier to support SIGINT during initialization
             read_config(opts, *cfg).get();
-            configurable::init_all(opts, *cfg, *ext).get();
             cfg->setup_directories();
 
             // We're writing to a non-atomic variable here. But bool writes are atomic
