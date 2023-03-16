@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
+#include <boost/test/tools/old/interface.hpp>
 #include <seastar/core/sstring.hh>
 #include <seastar/core/future-util.hh>
 #include <seastar/core/align.hh>
@@ -2842,7 +2843,8 @@ SEASTAR_TEST_CASE(test_zero_estimated_partitions) {
             // this is only here as a sanity check.
             BOOST_REQUIRE(sst_mr.is_buffer_empty());
             BOOST_REQUIRE(sst_mr.is_end_of_stream());
-            BOOST_REQUIRE_EQUAL(mut, sst_mut);
+            BOOST_REQUIRE(sst_mut);
+            BOOST_REQUIRE_EQUAL(mut, *sst_mut);
         }
     });
 }
