@@ -126,7 +126,7 @@ auto d2t = [](double d) -> int64_t {
     // Double to unsigned long conversion will overflow if the
     // input is greater than numeric_limits<long>::max(), so divide by two and
     // multiply again later.
-    return static_cast<unsigned long>(d*(std::numeric_limits<unsigned long>::max() >> 1)) << 1;
+    return static_cast<unsigned long>(d*static_cast<double>(std::numeric_limits<unsigned long>::max() >> 1)) << 1;
 };
 
 /**
