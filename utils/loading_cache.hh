@@ -520,14 +520,14 @@ private:
         // Do nothing if the entry has been dropped before we got here (e.g. by the _load() call on another key that is
         // also being reloaded).
         if (!ts_value_ptr->lru_entry_ptr()) {
-            _logger.trace("{}: entry was dropped before the reload", key);
+            //_logger.trace("{}: entry was dropped before the reload", key);
             return make_ready_future<>();
         }
 
         return _load(key).then_wrapped([this, ts_value_ptr = std::move(ts_value_ptr), &key] (auto&& f) mutable {
             // if the entry has been evicted by now - simply end here
             if (!ts_value_ptr->lru_entry_ptr()) {
-                _logger.trace("{}: entry was dropped during the reload", key);
+                //_logger.trace("{}: entry was dropped during the reload", key);
                 return make_ready_future<>();
             }
 
@@ -540,9 +540,9 @@ private:
             try {
                 *ts_value_ptr = f.get0();
             } catch (std::exception& e) {
-                _logger.debug("{}: reload failed: {}", key, e.what());
+                //_logger.debug("{}: reload failed: {}", key, e.what());
             } catch (...) {
-                _logger.debug("{}: reload failed: unknown error", key);
+                //_logger.debug("{}: reload failed: unknown error", key);
             }
 
             return make_ready_future<>();
@@ -558,7 +558,7 @@ private:
             auto since_last_read = now - v.last_read();
             auto since_loaded = now - v.loaded();
             if (_cfg.expiry < since_last_read || (ReloadEnabled == loading_cache_reload_enabled::yes && _cfg.expiry < since_loaded)) {
-                _logger.trace("drop_expired(): {}: dropping the entry: expiry {},  ms passed since: loaded {} last_read {}", lru_entry.key(), _cfg.expiry.count(), duration_cast<milliseconds>(since_loaded).count(), duration_cast<milliseconds>(since_last_read).count());
+                // _logger.trace("drop_expired(): {}: dropping the entry: expiry {},  ms passed since: loaded {} last_read {}", lru_entry.key(), _cfg.expiry.count(), duration_cast<milliseconds>(since_loaded).count(), duration_cast<milliseconds>(since_last_read).count());
                 return true;
             }
             return false;
@@ -578,14 +578,14 @@ private:
 
         auto drop_privileged_entry = [&] {
             ts_value_lru_entry& lru_entry = *_lru_list.rbegin();
-            _logger.trace("shrink(): {}: dropping the entry: ms since last_read {}", lru_entry.key(), duration_cast<milliseconds>(loading_cache_clock_type::now() - lru_entry.timestamped_value().last_read()).count());
+            //_logger.trace("shrink(): {}: dropping the entry: ms since last_read {}", lru_entry.key(), duration_cast<milliseconds>(loading_cache_clock_type::now() - lru_entry.timestamped_value().last_read()).count());
             loading_cache::destroy_ts_value(&lru_entry);
             LoadingCacheStats::inc_privileged_on_cache_size_eviction();
         };
 
         auto drop_unprivileged_entry = [&] {
             ts_value_lru_entry& lru_entry = *_unprivileged_lru_list.rbegin();
-            _logger.trace("shrink(): {}: dropping the unprivileged entry: ms since last_read {}", lru_entry.key(), duration_cast<milliseconds>(loading_cache_clock_type::now() - lru_entry.timestamped_value().last_read()).count());
+            //_logger.trace("shrink(): {}: dropping the unprivileged entry: ms since last_read {}", lru_entry.key(), duration_cast<milliseconds>(loading_cache_clock_type::now() - lru_entry.timestamped_value().last_read()).count());
             loading_cache::destroy_ts_value(&lru_entry);
             LoadingCacheStats::inc_unprivileged_on_cache_size_eviction();
         };
@@ -667,7 +667,7 @@ private:
                     }));
 
             return parallel_for_each(std::move(to_reload), [this] (timestamped_val_ptr ts_value_ptr) {
-                _logger.trace("on_timer(): {}: reloading the value", loading_values_type::to_key(ts_value_ptr));
+                //_logger.trace("on_timer(): {}: reloading the value", loading_values_type::to_key(ts_value_ptr));
                 return this->reload(std::move(ts_value_ptr));
             }).finally([this] {
                 _logger.trace("on_timer(): rearming");
@@ -777,7 +777,7 @@ public:
     }
 
     void touch() noexcept {
-        _parent.touch_lru_entry_2_sections(*this);
+        //_parent.touch_lru_entry_2_sections(*this);
     }
 
     const Key& key() const noexcept {
