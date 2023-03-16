@@ -66,9 +66,20 @@ add_scylla_test(auth_passwords_test
   LIBRARIES auth)
 add_scylla_test(auth_resource_test
   KIND BOOST)
+add_scylla_test(batchlog_manager_test
+  KIND SEASTAR)
 add_scylla_test(big_decimal_test
   KIND BOOST
   LIBRARIES utils)
+add_scylla_test(bptree_test
+  KIND BOOST
+  LIBRARIES utils)
+add_scylla_test(broken_sstable_test
+  KIND SEASTAR)
+add_scylla_test(btree_test
+  KIND SEASTAR)
+add_scylla_test(bytes_ostream_test
+  KIND SEASTAR)
 add_scylla_test(caching_options_test
   KIND BOOST)
 add_scylla_test(cartesian_product_test
@@ -189,9 +200,42 @@ add_scylla_test(row_cache_test
 add_scylla_test(rust_test
   KIND BOOST
   LIBRARIES inc)
+add_scylla_test(secondary_index_test
+  KIND SEASTAR)
 add_scylla_test(serialization_test
   KIND BOOST)
+add_scylla_test(serialized_action_test
+  KIND SEASTAR)
 add_scylla_test(small_vector_test
+  KIND SEASTAR)
+add_scylla_test(snitch_reset_test
+  KIND SEASTAR)
+add_scylla_test(sstable_3_x_test
+  KIND SEASTAR)
+add_scylla_test(sstable_datafile_test
+  KIND SEASTAR)
+add_scylla_test(sstable_mutation_test
+  KIND SEASTAR)
+add_scylla_test(sstable_partition_index_cache_test
+  KIND SEASTAR)
+add_scylla_test(schema_changes_test
+  KIND SEASTAR)
+add_scylla_test(sstable_conforms_to_mutation_source_test
+  KIND SEASTAR)
+add_scylla_test(sstable_compaction_test
+  KIND SEASTAR)
+add_scylla_test(sstable_resharding_test
+  KIND SEASTAR)
+add_scylla_test(sstable_directory_test
+  KIND SEASTAR)
+add_scylla_test(sstable_test
+  KIND SEASTAR)
+add_scylla_test(sstable_move_test
+  KIND SEASTAR)
+add_scylla_test(statement_restrictions_test
+  KIND SEASTAR
+  LIBRARIES cql3)
+add_scylla_test(storage_proxy_test
   KIND SEASTAR)
 add_scylla_test(summary_test
   KIND BOOST)
@@ -201,18 +245,8 @@ add_scylla_test(tracing_test
   KIND SEASTAR)
 add_scylla_test(transport_test
   KIND SEASTAR)
-add_scylla_test(type_json_test
-  KIND BOOST)
 add_scylla_test(types_test
   KIND SEASTAR)
-add_scylla_test(vint_serialization_test
-  KIND BOOST
-  LIBRARIES
-    scylla-main
-    utils)
-add_scylla_test(bptree_test
-  KIND BOOST
-  LIBRARIES utils)
 add_scylla_test(utf8_test
   KIND BOOST
   LIBRARIES utils)
@@ -220,6 +254,29 @@ add_scylla_test(user_function_test
   KIND SEASTAR
   LIBRARIES idl)
 add_scylla_test(user_types_test
+  KIND SEASTAR)
+add_scylla_test(UUID_test
+  KIND BOOST)
+add_scylla_test(view_build_test
+  KIND SEASTAR)
+add_scylla_test(view_complex_test
+  KIND SEASTAR)
+add_scylla_test(view_schema_test
+  KIND SEASTAR)
+add_scylla_test(view_schema_pkey_test
+  KIND SEASTAR)
+add_scylla_test(view_schema_ckey_test
+  KIND SEASTAR)
+add_scylla_test(vint_serialization_test
+  KIND BOOST
+  LIBRARIES
+    scylla-main
+    utils)
+add_scylla_test(virtual_reader_test
+  KIND SEASTAR)
+add_scylla_test(virtual_table_mutation_source_test
+  KIND SEASTAR)
+add_scylla_test(virtual_table_test
   KIND SEASTAR)
 add_scylla_test(expr_test
   KIND BOOST
