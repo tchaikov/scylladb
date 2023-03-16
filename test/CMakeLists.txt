@@ -32,3 +32,5 @@ add_subdirectory(perf)
 if(BUILD_TESTING)
     add_subdirectory(boost)
 endif()
+
+add_subdirectory(manual)
