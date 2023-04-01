@@ -2415,7 +2415,7 @@ sstable::make_crawling_reader(
 }
 
 static entry_descriptor make_entry_descriptor(sstring sstdir, sstring fname, sstring* const provided_ks, sstring* const provided_cf) {
-    static boost::regex la_mx("(la|m[cde])-(\\d+)-(\\w+)-(.*)");
+    static boost::regex la_mx("(la|m[cde])-([^-]+)-(\\w+)-(.*)");
     static boost::regex ka("(\\w+)-(\\w+)-ka-(\\d+)-(.*)");
 
     static boost::regex dir(format(".*/([^/]*)/([^/]+)-[\\da-fA-F]+(?:/({}|{}|{}|{})(?:/[^/]+)?)?/?",

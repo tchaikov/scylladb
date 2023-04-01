@@ -67,7 +67,11 @@ static seastar::metrics::label keyspace_label("ks");
 using namespace std::chrono_literals;
 
 void table::update_sstables_known_generation(std::optional<sstables::generation_type> generation) {
-    auto gen = generation.value_or(sstables::generation_type(0)).value();
+    auto gen = 0;
+    if (generation.has_value()) {
+        assert(!generation->is_uuid_based());
+        gen = int64_t(*generation);
+    }
     if (_sstable_generation_generator) {
         _sstable_generation_generator->update_known_generation(gen);
     } else {

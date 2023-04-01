@@ -73,7 +73,7 @@ sstable_directory::sstable_directory(sstables_manager& manager,
 {}
 
 void sstable_directory::filesystem_components_lister::handle(sstables::entry_descriptor desc, fs::path filename) {
-    if ((generation_value(desc.generation) % smp::count) != this_shard_id()) {
+    if (!desc.generation.is_uuid_based() && int64_t(desc.generation) % smp::count != this_shard_id()) {
         return;
     }
 
@@ -292,7 +292,8 @@ future<> sstable_directory::system_keyspace_components_lister::process(sstable_d
             // FIXME -- handle
             return make_ready_future<>();
         }
-        if ((generation_value(desc.generation) % smp::count) != this_shard_id()) {
+        if (!desc.generation.is_uuid_based() &&
+            int64_t(desc.generation) % smp::count != this_shard_id()) {
             return make_ready_future<>();
         }
 
@@ -551,6 +552,8 @@ future<> sstable_directory::replay_pending_delete_log(fs::path pending_delete_lo
 
 future<std::optional<sstables::generation_type>>
 highest_generation_seen(sharded<sstables::sstable_directory>& directory) {
+    // TODO: use an empty generation instead of an generation_type(0) and
+    // optional<generation_type> for finding the highest generation seen
     auto highest = co_await directory.map_reduce0(std::mem_fn(&sstables::sstable_directory::highest_generation_seen), sstables::generation_type(0), [] (std::optional<sstables::generation_type> a, std::optional<sstables::generation_type> b) {
         if (a && b) {
             return std::max(*a, *b);
@@ -562,7 +565,7 @@ highest_generation_seen(sharded<sstables::sstable_directory>& directory) {
             return sstables::generation_type(0);
         }
     });
-    co_return highest.value() ? std::make_optional(highest): std::nullopt;
+    co_return highest.value<int64_t>() == 0 ? std::make_optional(highest) : std::nullopt;
 }
 
 }

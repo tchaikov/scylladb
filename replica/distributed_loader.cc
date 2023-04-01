@@ -22,6 +22,7 @@
 #include "utils/lister.hh"
 #include "compaction/compaction.hh"
 #include "compaction/compaction_manager.hh"
+#include "sstables/generation_type.hh"
 #include "sstables/sstables.hh"
 #include "sstables/sstables_manager.hh"
 #include "sstables/sstable_directory.hh"
@@ -472,7 +473,7 @@ distributed_loader::process_upload_dir(distributed<replica::database>& db, distr
         sharded<sstables::sstable_generation_generator> sharded_gen;
         auto highest_generation = highest_generation_seen(directory).get0().value_or(
             sstables::generation_type{0});
-        sharded_gen.start(highest_generation.value()).get();
+        sharded_gen.start(highest_generation.value<int64_t>()).get();
         auto stop_generator = deferred_stop(sharded_gen);
 
         auto make_sstable = [&] (shard_id shard) {
