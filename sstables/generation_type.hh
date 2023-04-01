@@ -15,9 +15,11 @@
 #include <compare>
 #include <limits>
 #include <iostream>
+#include <stdexcept>
 #include <type_traits>
 #include <boost/range/adaptors.hpp>
 #include <seastar/core/on_internal_error.hh>
+#include <boost/regex.hpp>
 #include <seastar/core/smp.hh>
 #include <seastar/core/sstring.hh>
 #include "types/types.hh"
@@ -35,16 +37,20 @@ public:
 private:
     utils::UUID _value;
 
-    explicit constexpr generation_type(utils::UUID value) noexcept
-        : _value(value) {}
-
 public:
     generation_type() = delete;
-
     // use zero as the timestamp to differentiate from the regular timeuuid,
     // and use the least_sig_bits to encode the value of generation identifier.
     explicit constexpr generation_type(int_t value) noexcept
         : _value(utils::UUID_gen::create_time(std::chrono::milliseconds::zero()), value) {}
+    explicit constexpr generation_type(utils::UUID value) noexcept
+        : _value(value) {}
+    constexpr utils::UUID as_uuid() const noexcept {
+        if (_value.timestamp() == 0) {
+            on_internal_error(sstlog, "int generation used as a UUID ");
+        }
+        return _value;
+    }
     constexpr int_t as_int() const noexcept {
         if (_value.timestamp() != 0) {
             on_internal_error(sstlog, "UUID generation used as an int");
@@ -57,8 +63,22 @@ public:
             ec == std::errc() && ptr == s.data() + s.size()) {
             return generation_type(int_value);
         } else {
-            throw std::invalid_argument(fmt::format("invalid UUID: {}", s));
+            boost::regex pattern("([[:alnum:]]{4})_([[:alnum:]]{4})_([[:alnum:]]{5})([[:alnum:]]{13})");
+            boost::smatch match;
+            if (!boost::regex_match(s, match, pattern)) {
+                throw std::invalid_argument(fmt::format("invalid UUID: {}", s));
+            }
+            utils::UUID_gen::decimicroseconds timestamp = {};
+            timestamp += std::chrono::days{std::stol(match[0], nullptr, 36)};
+            timestamp += std::chrono::seconds{std::stol(match[1], nullptr, 36)};
+            timestamp += ::utils::UUID_gen::decimicroseconds{std::stoul(match[2], nullptr, 36)};
+            int64_t lsb = std::stoull(match[3], nullptr, 36);
+            return generation_type{utils::UUID_gen::get_time_UUID_raw(timestamp, lsb)};
         }
+    }
+    // return true if the generation holds a valid id
+    explicit operator bool() const noexcept {
+        return bool(_value);
     }
     // convert to data_value
     //
@@ -75,12 +95,11 @@ public:
     explicit operator data_value() const noexcept {
         return _value;
     }
-    static generation_type from_uuid(utils::UUID value) {
-        // if the encoded value is an int64_t, the UUID's timestamp must be
-        // zero, and the least significant bits is used to encode the value
-        // of the int64_t.
-        assert(value.timestamp() == 0);
-        return generation_type(value);
+    constexpr bool is_uuid_based() const noexcept {
+        // if the value of generation_type should be an int64_t, its timestamp
+        // must be zero, and the least significant bits is used to encode the
+        // value of the int64_t.
+        return _value.timestamp() != 0;
     }
     std::strong_ordering operator<=>(const generation_type& other) const noexcept = default;
 };
@@ -124,7 +143,11 @@ public:
             _last_generation = generation;
         }
     }
-    sstables::generation_type operator()() {
+    // TODO: remove the default value of uuid_identifier, and use related configuration
+    sstables::generation_type operator()(bool uuid_identifier = false) {
+        if (uuid_identifier) {
+            return generation_type(utils::UUID_gen::get_time_UUID());
+        }
         // each shard has its own "namespace" so we increment the generation id
         // by smp::count to avoid name confliction of sstables
         _last_generation += seastar::smp::count;
@@ -143,7 +166,11 @@ namespace std {
 template <>
 struct hash<sstables::generation_type> {
     size_t operator()(const sstables::generation_type& generation) const noexcept {
-        return hash<sstables::generation_type::int_t>{}(generation.as_int());
+        if (generation.is_uuid_based()) {
+            return hash<utils::UUID>{}(generation.as_uuid());
+        } else {
+            return hash<int64_t>{}(generation.as_int());
+        }
     }
 };
 
@@ -163,6 +190,41 @@ template <>
 struct fmt::formatter<sstables::generation_type> : fmt::formatter<std::string_view> {
     template <typename FormatContext>
     auto format(const sstables::generation_type& generation, FormatContext& ctx) const {
-        return fmt::format_to(ctx.out(), "{}", generation.as_int());
+        if (generation.is_uuid_based()) {
+            // This matches the way how Cassandra formats UUIDBasedSSTableId, but we
+            // don't have to. just don't want to use "-" as the delimeter in UUID, as
+            // "-" is already used to split different parts in a SStable filename like
+            // "nb-1-big-Data.db".
+            const auto uuid = generation.as_uuid();
+            auto timestamp = ::utils::UUID_gen::decimicroseconds(uuid.timestamp());
+
+            char days_buf[4] = {};
+            auto days = std::chrono::duration_cast<std::chrono::days>(timestamp);
+            timestamp -= days;
+            char* days_end = std::to_chars(std::begin(days_buf), std::end(days_buf),
+                                           days.count(), 36).ptr;
+
+            char secs_buf[4] = {};
+            auto secs = std::chrono::duration_cast<std::chrono::seconds>(timestamp);
+            timestamp -= secs;
+            char* secs_end = std::to_chars(std::begin(secs_buf), std::end(secs_buf),
+                                           secs.count(), 36).ptr;
+
+            char decimicro_buf[5] = {};
+            char* decimicro_end = std::to_chars(std::begin(decimicro_buf), std::end(decimicro_buf),
+                                                timestamp.count(), 36).ptr;
+
+            char lsb_buf[13] = {};
+            char* lsb_end = std::to_chars(std::begin(lsb_buf), std::end(lsb_buf),
+                                          static_cast<uint64_t>(uuid.get_least_significant_bits()), 36).ptr;
+
+            return fmt::format_to(ctx.out(), "{:0>4}_{:0>4}_{:0>5}{:0>13}",
+                                  std::string_view(days_buf, days_end),
+                                  std::string_view(secs_buf, secs_end),
+                                  std::string_view(decimicro_buf, decimicro_end),
+                                  std::string_view(lsb_buf, lsb_end));
+        } else {
+            return fmt::format_to(ctx.out(), "{}", generation.as_int());
+        }
     }
 };
