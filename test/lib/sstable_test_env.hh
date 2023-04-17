@@ -69,7 +69,7 @@ class test_env {
         impl(const impl&) = delete;
 
         sstables::generation_type new_generation() noexcept {
-            return gen();
+            return gen(false);
         }
     };
     std::unique_ptr<impl> _impl;

@@ -19,6 +19,7 @@
 #include "db/system_keyspace.hh"
 #include "db/system_distributed_keyspace.hh"
 #include "db/schema_tables.hh"
+#include "gms/feature_service.hh"
 #include "utils/lister.hh"
 #include "compaction/compaction.hh"
 #include "compaction/compaction_manager.hh"
@@ -479,7 +480,10 @@ distributed_loader::process_upload_dir(distributed<replica::database>& db, distr
 
         auto make_sstable = [&] (shard_id shard) {
             auto& sstm = global_table->get_sstables_manager();
-            auto generation = sharded_gen.invoke_on(shard, [] (auto& gen) { return gen(); }).get();
+            bool uuid_sstable_identifiers = db.local().features().uuid_sstable_identifiers;
+            auto generation = sharded_gen.invoke_on(shard, [uuid_sstable_identifiers] (auto& gen) {
+                return gen(uuid_sstable_identifiers);
+            }).get();
             return sstm.make_sstable(global_table->schema(), global_table->get_storage_options(),
                                      upload.native(), generation, sstm.get_highest_supported_format(),
                                      sstables::sstable_format_types::big, gc_clock::now(), &error_handler_gen_for_upload_dir);
