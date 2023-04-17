@@ -151,8 +151,7 @@ public:
             _last_generation = generation;
         }
     }
-    // TODO: remove the default value of uuid_identifier, and use related configuration
-    sstables::generation_type operator()(bool uuid_identifier = false) {
+    generation_type operator()(bool uuid_identifier = false) {
         if (uuid_identifier) {
             return generation_type(utils::UUID_gen::get_time_UUID());
         }

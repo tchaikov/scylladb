@@ -42,6 +42,7 @@
 #include "utils/fb_utilities.hh"
 #include "mutation/mutation_source_metadata.hh"
 #include "gms/gossiper.hh"
+#include "gms/feature_service.hh"
 #include "db/config.hh"
 #include "db/commitlog/commitlog.hh"
 #include "utils/lister.hh"
@@ -86,7 +87,7 @@ sstables::generation_type table::calculate_generation_for_new_table() {
     // See https://github.com/scylladb/scylladb/issues/10459
     // for uuid-based sstable generation
     assert(_sstable_generation_generator);
-    auto ret = std::invoke(*_sstable_generation_generator);
+    auto ret = std::invoke(*_sstable_generation_generator, _sstables_manager.feature_service().uuid_sstable_identifiers);
     tlogger.debug("{}.{} new sstable generation {}", schema()->ks_name(), schema()->cf_name(), ret);
     return ret;
 }

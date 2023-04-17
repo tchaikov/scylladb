@@ -92,6 +92,7 @@ public:
     std::unique_ptr<sstable_directory::components_lister> get_components_lister(const data_dictionary::storage_options& storage, std::filesystem::path dir);
 
     virtual sstable_writer_config configure_writer(sstring origin) const;
+    const gms::feature_service& feature_service() const { return _features; }
     const db::config& config() const { return _db_config; }
     cache_tracker& get_cache_tracker() { return _cache_tracker; }
 
