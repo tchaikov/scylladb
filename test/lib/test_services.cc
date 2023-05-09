@@ -175,6 +175,11 @@ std::unordered_map<sstring, s3::endpoint_config> make_storage_options_config(con
             cfg[os.endpoint] = s3::endpoint_config {
                 .port = std::stoul(tests::getenv_safe("S3_SERVER_PORT_FOR_TEST")),
             };
+        },
+        [&cfg] (const data_dictionary::storage_options::tiered& tiered) mutable -> void {
+            cfg[tiered.endpoint] = s3::endpoint_config {
+                .port = std::stoul(tests::getenv_safe("S3_SERVER_PORT_FOR_TEST")),
+            };
         }
     }, so.value);
     return cfg;
