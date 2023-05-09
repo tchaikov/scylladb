@@ -312,6 +312,30 @@ std::map<sstring, sstring> storage_options::s3::to_map() const {
             {"endpoint", endpoint}};
 }
 
+storage_options::tiered storage_options::tiered::from_map(const std::map<sstring, sstring>& values) {
+    auto get_value = [&](sstring key) {
+        auto found = values.find(key);
+        if (found == values.end()) {
+            throw std::runtime_error(format("Missing {} option: {}", name, key));
+        }
+        return found->second;
+    };
+    tiered options {
+        .bucket = get_value("bucket"),
+        .endpoint = get_value("endpoint"),
+    };
+    if (values.size() > 2) {
+        throw std::runtime_error(format("Extraneous options for {}: {}",
+                                        name, fmt::join(values | boost::adaptors::map_keys, ",")));
+    }
+    return options;
+}
+
+std::map<sstring, sstring> storage_options::tiered::to_map() const {
+    return {{"bucket", bucket},
+            {"endpoint", endpoint}};
+}
+
 bool storage_options::is_local_type() const noexcept {
     return std::holds_alternative<local>(value);
 }
@@ -322,6 +346,9 @@ storage_options::value_type storage_options::from_map(std::string_view type, std
     }
     if (type == s3::name) {
         return s3::from_map(values);
+    }
+    if (type == tiered::name) {
+        return tiered::from_map(values);
     }
     throw std::runtime_error(format("Unknown storage type: {}", type));
 }

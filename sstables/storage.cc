@@ -16,6 +16,9 @@
 #include <seastar/coroutine/parallel_for_each.hh>
 #include <seastar/util/file.hh>
 
+#include "seastar/core/future.hh"
+#include "seastar/core/stream.hh"
+#include "seastar/core/when_all.hh"
 #include "sstables/exceptions.hh"
 #include "sstables/sstables_manager.hh"
 #include "sstables/sstable_version.hh"
@@ -521,6 +524,279 @@ future<> s3_storage::snapshot(const sstable& sst, sstring dir, absolute_path abs
     co_await coroutine::return_exception(std::runtime_error("Snapshotting S3 objects not implemented"));
 }
 
+} // namespace sstables
+
+namespace {
+
+/// a file_impl hiding the file related functionalities exposed by tiered_storage,
+///
+/// a tiered_file is backed by a local file and/or a remote file. at least one of
+/// these two files should be valid. to be specific,
+///
+/// -
+///
+class tiered_file : public file_impl {
+    file _local_file;
+    file _remote_file;
+
+    auto file_for_read() {
+        // when serving read requests, if the corresponding local file does not
+        // exist, we fall back to the remote one. but if both of them are
+        // available, the local one is always prefered for better latency.
+        if (_local_file) {
+            return get_file_impl(_local_file);
+        } else {
+            return get_file_impl(_remote_file);
+        }
+    }
+    auto file_for_write() {
+        // when serving write requests, the write ops are passed down to the
+        // local file only. because filesystem_storage uses the returned file
+        // to build data_sink for writing index and data, while s3_storage does
+        // not. the latter's data_sink relies on the s3 client to do its job.
+        // so the s3_file is bypassed when serving write requests.
+        assert(_local_file);
+        return get_file_impl(_local_file);
+    }
+public:
+    tiered_file(file local_file, file remote_file)
+        : _local_file{std::move(local_file)}
+        , _remote_file{std::move(remote_file)} {}
+    future<size_t> write_dma(uint64_t pos,
+                             const void* buffer,
+                             size_t len,
+                             const io_priority_class& pc) override {
+        return file_for_write()->write_dma(pos, buffer, len, pc);
+    }
+    future<size_t> write_dma(uint64_t pos,
+                             std::vector<iovec> iov,
+                             const io_priority_class& pc) override {
+        return file_for_write()->write_dma(pos, iov, pc);
+    }
+    future<size_t> read_dma(uint64_t pos,
+                            void* buffer,
+                            size_t len,
+                            const io_priority_class& pc) override {
+        return file_for_read()->read_dma(pos, buffer, len, pc);
+    }
+    future<size_t> read_dma(uint64_t pos,
+                            std::vector<iovec> iov,
+                            const io_priority_class& pc) override {
+        return file_for_read()->read_dma(pos, std::move(iov), pc);
+    }
+    future<temporary_buffer<uint8_t>> dma_read_bulk(uint64_t offset,
+                                                    size_t range_size,
+                                                    const io_priority_class& pc) override {
+        return file_for_read()->dma_read_bulk(offset, range_size, pc);
+    }
+    future<> flush() override {
+        return file_for_write()->flush();
+    }
+    future<> truncate(uint64_t length) override {
+        return file_for_write()->truncate(length);
+    }
+    future<> discard(uint64_t offset, uint64_t length) override {
+        return file_for_write()->discard(offset, length);
+    }
+    future<> allocate(uint64_t position, uint64_t length) override {
+        return file_for_write()->allocate(position, length);
+    }
+    /// stat() is use for retrieving the data file's size and its mtime
+    future<struct stat> stat() override {
+        // XXX: is it possible that the two stats() disagree with each other?
+        return file_for_read()->stat();
+    }
+    // size() is used for retrieving the total size for the corresponding
+    // `cached_file` of the index
+    future<uint64_t> size() override {
+        // XXX: is it possible that the two size() disagree with each other?
+        return file_for_read()->size();
+    }
+    future<> close() override {
+        auto maybe_close_local = make_ready_future();
+        if (_local_file) {
+            maybe_close_local = _local_file.close();
+        }
+        auto maybe_close_remote = make_ready_future();
+        if (_remote_file) {
+            maybe_close_remote = _remote_file.close();
+        }
+        return when_all_succeed(std::move(maybe_close_local),
+                                std::move(maybe_close_remote)).discard_result();
+    }
+    std::unique_ptr<file_handle_impl> dup() override;
+    subscription<directory_entry> list_directory(std::function<future<> (directory_entry)>) override {
+        throw_with_backtrace<std::logic_error>("unsupported operation");
+    }
+};
+
+class tiered_file_handle : public file_handle_impl {
+    std::optional<seastar::file_handle> _local;
+    std::optional<seastar::file_handle> _remote;
+public:
+    tiered_file_handle(std::optional<seastar::file_handle> local,
+                       std::optional<seastar::file_handle> remote)
+        : _local{std::move(local)}
+        , _remote{std::move(remote)} {}
+    std::unique_ptr<file_handle_impl> clone() const override {
+        return std::make_unique<tiered_file_handle>(_local, _remote);
+    }
+    seastar::shared_ptr<file_impl> to_file() && override {
+        auto local_file = _local ? std::move(_local)->to_file() : file{};
+        auto remote_file = _remote ? std::move(_remote)->to_file() : file{};
+        return seastar::make_shared<tiered_file>(std::move(local_file),
+                                                 std::move(remote_file));
+    }
+};
+
+std::unique_ptr<file_handle_impl> tiered_file::dup() {
+    std::optional<seastar::file_handle> local_fh;
+    if (_local_file) {
+        local_fh = _local_file.dup();
+    }
+    std::optional<seastar::file_handle> remote_fh;
+    if (_remote_file) {
+        remote_fh = _remote_file.dup();
+    }
+    return std::make_unique<tiered_file_handle>(std::move(local_fh),
+                                                std::move(remote_fh));
+}
+
+/// a data_sink_impl for persisting SSTable files
+///
+/// so far, tiered_data_sink synchronizes the write ops to local sink and to
+/// remote sink. but in future, we need to support more flexible policies.
+/// for instance, we might need to allow the flush op targetting remote sink to
+/// run in background, and let the flush() call to return early. also, we should
+/// be able to optionally bypass writes to the fs_file on a per-file basis where
+/// the data does not need to be persisted locally.
+class tiered_data_sink : public data_sink_impl {
+    data_sink _local_sink;
+    data_sink _remote_sink;
+
+public:
+    tiered_data_sink(data_sink&& local_sink, data_sink&& remote_sink)
+        : _local_sink{std::move(local_sink)}
+        , _remote_sink{std::move(remote_sink)}
+    {}
+
+    future<> put(net::packet) override {
+        // s3 does not support it, neither do i
+        throw_with_backtrace<std::runtime_error>("s3 put(net::packet) unsupported");
+    }
+    future<> put(temporary_buffer<char> buf) override {
+        auto clone_buf = buf.share();
+        return when_all_succeed(_local_sink.put(std::move(buf)),
+                                _remote_sink.put(std::move(clone_buf))).discard_result();
+    }
+
+    future<> put(std::vector<temporary_buffer<char>> data) override {
+        std::vector<temporary_buffer<char>> clone_data;
+        clone_data.reserve(data.size());
+        std::transform(data.begin(), data.end(), std::back_inserter(clone_data),
+                       [](auto& buf) { return buf.share(); });
+        return when_all_succeed(_local_sink.put(std::move(data)),
+                                _remote_sink.put(std::move(clone_data))).discard_result();
+    }
+
+    future<> flush() override {
+        return when_all_succeed(_local_sink.flush(),
+                                _remote_sink.flush()).discard_result();
+    }
+
+    future<> close() override {
+        return when_all_succeed(_local_sink.close(),
+                                _remote_sink.close()).discard_result();
+    }
+};
+
+using namespace sstables;
+class tiered_storage : public sstables::storage {
+    std::unique_ptr<filesystem_storage> _fs_storage;
+    std::unique_ptr<s3_storage> _s3_storage;
+
+public:
+    tiered_storage(sstring endpoint,
+                   s3::endpoint_config_ptr endpoint_cfg,
+                   sstring bucket,
+                   sstring prefix)
+        : _fs_storage{std::make_unique<filesystem_storage>(prefix)}
+        , _s3_storage{std::make_unique<s3_storage>(endpoint, endpoint_cfg, bucket, prefix)}
+    {}
+    future<> seal(const sstable& sst) override  {
+        return when_all_succeed(_fs_storage->seal(sst),
+                                _s3_storage->seal(sst)).discard_result();
+    }
+    future<> snapshot(const sstable& sst,
+                      sstring dir,
+                      absolute_path abs) const override  {
+        // s3_storage does not support snapshot()
+        return _fs_storage->snapshot(sst, dir, abs);
+    }
+    future<> change_state(const sstable& sst,
+                          sstring to,
+                          generation_type generation,
+                          delayed_commit_changes* delay) override {
+        // s3_storage does not support change_state()
+        return _fs_storage->change_state(sst, to, generation, delay);
+    }
+    // runs in async context
+    void open(sstable& sst, const io_priority_class& pc) override {
+        // runs in async context
+        _fs_storage->open(sst, pc);
+        _s3_storage->open(sst, pc);
+    }
+    future<> wipe(const sstable& sst) noexcept override {
+        return when_all_succeed(_fs_storage->wipe(sst),
+                                _s3_storage->wipe(sst)).discard_result();
+    }
+    future<file> open_component(const sstable& sst,
+                                component_type type,
+                                open_flags flags,
+                                file_open_options options,
+                                bool check_integrity) override {
+        return when_all(
+            _fs_storage->open_component(sst, type, flags, options, check_integrity),
+            _s3_storage->open_component(sst, type, flags, options, check_integrity)).then([](std::tuple<future<file>, future<file>> files) {
+                auto&& [fs_file, s3_file] = files;
+                return file{make_shared<tiered_file>(fs_file.failed() ? file{} : fs_file.get(),
+                                                     s3_file.failed() ? file{} : s3_file.get())};
+            });
+    }
+    future<data_sink> make_data_or_index_sink(sstable& sst,
+                                              component_type type,
+                                              io_priority_class pc) override {
+        return when_all_succeed(
+            _s3_storage->make_data_or_index_sink(sst, type, pc),
+            _fs_storage->make_data_or_index_sink(sst, type, pc)).then_unpack([] (data_sink&& s3_sink,
+                                                                                 data_sink&& fs_sink) {
+                return data_sink(std::make_unique<tiered_data_sink>(std::move(s3_sink), std::move(fs_sink)));
+            });
+    }
+    future<data_sink> make_component_sink(sstable& sst,
+                                          component_type type,
+                                          open_flags oflags,
+                                          file_output_stream_options options) override {
+        return when_all_succeed(
+            _s3_storage->make_component_sink(sst, type, oflags, options),
+            _fs_storage->make_component_sink(sst, type, oflags, options)).then_unpack([] (data_sink&& s3_sink,
+                                                                                          data_sink&& fs_sink) {
+                return data_sink(std::make_unique<tiered_data_sink>(std::move(s3_sink), std::move(fs_sink)));
+            });
+    }
+    future<> destroy(const sstable& sst) override {
+        return when_all_succeed(_s3_storage->destroy(sst),
+                                _fs_storage->destroy(sst)).discard_result();
+    }
+    sstring prefix() const override {
+        return _s3_storage->prefix();
+    }
+};
+
+} // anonymous namespace
+
+namespace sstables {
+
 std::unique_ptr<sstables::storage> make_storage(sstables_manager& manager, const data_dictionary::storage_options& s_opts, sstring dir) {
     return std::visit(overloaded_functor {
         [dir] (const data_dictionary::storage_options::local& loc) mutable -> std::unique_ptr<sstables::storage> {
@@ -528,6 +804,9 @@ std::unique_ptr<sstables::storage> make_storage(sstables_manager& manager, const
         },
         [dir, &manager] (const data_dictionary::storage_options::s3& os) mutable -> std::unique_ptr<sstables::storage> {
             return std::make_unique<sstables::s3_storage>(os.endpoint, manager.get_endpoint_config(os.endpoint), os.bucket, std::move(dir));
+        },
+        [dir, &manager] (const data_dictionary::storage_options::tiered& os) mutable -> std::unique_ptr<sstables::storage> {
+        return std::make_unique<tiered_storage>(os.endpoint, manager.get_endpoint_config(os.endpoint), os.bucket, std::move(dir));
         }
     }, s_opts.value);
 }

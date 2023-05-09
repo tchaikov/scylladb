@@ -68,6 +68,10 @@ make_components_lister(const data_dictionary::storage_options& storage,
         },
         [&ks, dir] (const data_dictionary::storage_options::s3& os) mutable -> std::unique_ptr<sstable_directory::components_lister> {
             return std::make_unique<sstable_directory::system_keyspace_components_lister>(ks, dir.native());
+        },
+        [&ks, dir] (const data_dictionary::storage_options::tiered& os) mutable -> std::unique_ptr<sstable_directory::components_lister> {
+            // TODO: should list both the local directory *and* the keyspace?
+            return std::make_unique<sstable_directory::system_keyspace_components_lister>(ks, dir.native());
         }
     }, storage.value);
 }

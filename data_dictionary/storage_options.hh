@@ -32,7 +32,15 @@ struct storage_options {
         std::map<sstring, sstring> to_map() const;
         bool operator==(const s3&) const = default;
     };
-    using value_type = std::variant<local, s3>;
+    struct tiered {
+        sstring bucket;
+        sstring endpoint;
+        static constexpr std::string_view name = "TIERED";
+        static tiered from_map(const std::map<sstring, sstring>&);
+        std::map<sstring, sstring> to_map() const;
+        auto operator<=>(const tiered&) const = default;
+    };
+    using value_type = std::variant<local, s3, tiered>;
     value_type value = local{};
 
     storage_options() = default;
