@@ -130,6 +130,11 @@ public:
         _last_generation += seastar::smp::count;
         return generation_type(_last_generation);
     }
+    /// returns a hint indicating if an sstable belongs to a shard is determined by
+    /// overlapping its partition-ranges with the shard's owned ranges.
+    static bool maybe_owned_by_this_shard(const sstables::generation_type& gen) {
+        return gen.as_int() % smp::count == seastar::this_shard_id();
+    }
 };
 
 } //namespace sstables

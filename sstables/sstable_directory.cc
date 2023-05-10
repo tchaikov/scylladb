@@ -12,6 +12,7 @@
 #include <seastar/util/file.hh>
 #include <boost/range/adaptor/map.hpp>
 #include <boost/algorithm/string.hpp>
+#include "sstables/generation_type.hh"
 #include "sstables/sstable_directory.hh"
 #include "sstables/sstables.hh"
 #include "sstables/sstables_manager.hh"
@@ -73,7 +74,7 @@ sstable_directory::sstable_directory(sstables_manager& manager,
 {}
 
 void sstable_directory::filesystem_components_lister::handle(sstables::entry_descriptor desc, fs::path filename) {
-    if ((desc.generation.as_int() % smp::count) != this_shard_id()) {
+    if (!sstables::sstable_generation_generator::maybe_owned_by_this_shard(desc.generation)) {
         return;
     }
 
@@ -293,7 +294,7 @@ future<> sstable_directory::system_keyspace_components_lister::process(sstable_d
             // FIXME -- handle
             return make_ready_future<>();
         }
-        if ((desc.generation.as_int() % smp::count) != this_shard_id()) {
+        if (!sstable_generation_generator::maybe_owned_by_this_shard(desc.generation)) {
             return make_ready_future<>();
         }
 
