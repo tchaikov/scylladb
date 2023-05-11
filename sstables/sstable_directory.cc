@@ -20,6 +20,7 @@
 #include "log.hh"
 #include "sstable_directory.hh"
 #include "utils/lister.hh"
+#include "utils/overloaded_functor.hh"
 #include "replica/database.hh"
 #include "db/system_keyspace.hh"
 
@@ -57,6 +58,20 @@ sstable_directory::system_keyspace_components_lister::system_keyspace_components
 {
 }
 
+static std::unique_ptr<sstable_directory::components_lister>
+make_components_lister(const data_dictionary::storage_options& storage,
+                       db::system_keyspace& ks,
+                       std::filesystem::path dir) {
+    return std::visit(overloaded_functor {
+        [dir] (const data_dictionary::storage_options::local& loc) mutable -> std::unique_ptr<sstable_directory::components_lister> {
+            return std::make_unique<sstable_directory::filesystem_components_lister>(std::move(dir));
+        },
+        [&ks, dir] (const data_dictionary::storage_options::s3& os) mutable -> std::unique_ptr<sstable_directory::components_lister> {
+            return std::make_unique<sstable_directory::system_keyspace_components_lister>(ks, dir.native());
+        }
+    }, storage.value);
+}
+
 sstable_directory::sstable_directory(sstables_manager& manager,
         schema_ptr schema,
         lw_shared_ptr<const data_dictionary::storage_options> storage_opts,
@@ -69,7 +84,7 @@ sstable_directory::sstable_directory(sstables_manager& manager,
     , _sstable_dir(std::move(sstable_dir))
     , _io_priority(std::move(io_prio))
     , _error_handler_gen(error_handler_gen)
-    , _lister(_manager.get_components_lister(*_storage_opts, _sstable_dir))
+    , _lister(make_components_lister(*_storage_opts, _manager.system_keyspace(), _sstable_dir))
     , _unshared_remote_sstables(smp::count)
 {}
 
