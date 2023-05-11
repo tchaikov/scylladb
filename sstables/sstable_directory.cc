@@ -13,6 +13,7 @@
 #include <boost/range/adaptor/map.hpp>
 #include <boost/algorithm/string.hpp>
 #include "sstables/generation_type.hh"
+#include "sstables/open_info.hh"
 #include "sstables/sstable_directory.hh"
 #include "sstables/sstables.hh"
 #include "sstables/sstables_manager.hh"
@@ -25,6 +26,39 @@
 #include "db/system_keyspace.hh"
 
 static logging::logger dirlog("sstable_directory");
+
+namespace {
+
+using namespace sstables;
+
+// a components_lister which
+// 1. collects all TOC from both the sstables_registry and the local fs directory, we will
+//    process the union of these two sets. and prefer the local one for better latency
+// 2. cleanup the mess if necessary
+class tiered_components_lister final : public sstable_directory::components_lister {
+    class fs_lister : sstable_directory::filesystem_components_lister {
+        using descriptors = utils::chunked_vector<entry_descriptor>;
+        descriptors _descriptors;
+    public:
+        using sstable_directory::filesystem_components_lister::filesystem_components_lister;
+    private:
+        future<> process_one(sstable_directory&, entry_descriptor desc, sstable_directory::process_flags) final {
+            _descriptors.push_back(std::move(desc));
+            co_return;
+        }
+    } _fs_lister;
+public:
+    future<> process(sstable_directory& directory,
+                     fs::path location,
+                     sstable_directory::process_flags flags) override {
+        _fs_lister.sstable_directory::filesystem_components_lister::process(directory, location, flags);
+    }
+    future<> commit() override {
+
+    }
+};
+
+} // anonymous namespace
 
 namespace sstables {
 
@@ -289,8 +323,7 @@ future<> sstable_directory::filesystem_components_lister::process(sstable_direct
     co_await directory.parallel_for_each_restricted(descriptors, [this, flags, &directory] (std::pair<const generation_type, sstables::entry_descriptor>& t) {
         auto& desc = std::get<1>(t);
         _state->generations_found.erase(desc.generation);
-        // This will try to pre-load this file and throw an exception if it is invalid
-        return directory.process_descriptor(std::move(desc), flags);
+        return process_one(directory, std::move(desc), flags);
     });
 
     // For files missing TOC, it depends on where this is coming from.
@@ -305,6 +338,13 @@ future<> sstable_directory::filesystem_components_lister::process(sstable_direct
             _state->files_for_removal.insert(path.native());
         }
     }
+}
+
+future<> sstable_directory::filesystem_components_lister::process_one(sstable_directory& directory,
+                                                                      entry_descriptor desc,
+                                                                      process_flags flags) {
+    // This will try to pre-load this file and throw an exception if it is invalid
+    return directory.process_descriptor(std::move(desc), flags);
 }
 
 future<> sstable_directory::system_keyspace_components_lister::process(sstable_directory& directory, fs::path location, process_flags flags) {

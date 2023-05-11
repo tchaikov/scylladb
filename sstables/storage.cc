@@ -755,13 +755,19 @@ public:
                                 open_flags flags,
                                 file_open_options options,
                                 bool check_integrity) override {
-        return when_all(
-            _fs_storage->open_component(sst, type, flags, options, check_integrity),
-            _s3_storage->open_component(sst, type, flags, options, check_integrity)).then([](std::tuple<future<file>, future<file>> files) {
-                auto&& [fs_file, s3_file] = files;
-                return file{make_shared<tiered_file>(fs_file.failed() ? file{} : fs_file.get(),
-                                                     s3_file.failed() ? file{} : s3_file.get())};
-            });
+        std::exception_ptr ex;
+        try {
+            // try the local fs first, and fallback to s3 for better latency in the optimal cases
+            co_return co_await _fs_storage->open_component(sst, type, flags, options, check_integrity);
+        } catch (const std::system_error& e) {
+            if (e.code().value() != ENOENT) {
+                ex = std::current_exception();
+            }
+        }
+        if (ex) {
+            co_await coroutine::return_exception_ptr(std::move(ex));
+        }
+        co_return co_await _s3_storage->open_component(sst, type, flags, options, check_integrity);
     }
     future<data_sink> make_data_or_index_sink(sstable& sst,
                                               component_type type,
