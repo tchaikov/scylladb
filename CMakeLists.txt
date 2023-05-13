@@ -27,6 +27,17 @@ add_compile_definitions(
     ${Seastar_DEFINITIONS_${build_mode}}
     FMT_DEPRECATED_OSTREAM)
 include(limit_jobs)
+
+option(Scylla_ENABLE_LTO "Turn on link-time optimization." OFF)
+if(Scylla_ENABLE_LTO)
+  include(CheckIPOSupported)
+  check_ipo_supported(RESULT ipo_supported OUTPUT error)
+  if(NOT ipo_supported)
+    message(FATAL "LTO is not supported")
+  endif()
+  set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+endif()
+
 # Configure Seastar compile options to align with Scylla
 set(CMAKE_CXX_STANDARD "20" CACHE INTERNAL "")
 set(CMAKE_CXX_EXTENSIONS ON CACHE INTERNAL "")
