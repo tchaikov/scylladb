@@ -12,6 +12,7 @@
 #include <boost/algorithm/string.hpp>
 
 #include <exception>
+#include <stdexcept>
 #include <seastar/coroutine/exception.hh>
 #include <seastar/coroutine/parallel_for_each.hh>
 #include <seastar/util/file.hh>
@@ -467,21 +468,24 @@ public:
 };
 
 sstring s3_storage::make_s3_object_name(const sstable& sst, component_type type) const {
-    return format("/{}/{}/{}", _bucket, *_remote_prefix, sstable_version_constants::get_component_map(sst.get_version()).at(type));
+    if (!sst.generation().is_uuid_based()) {
+        throw std::runtime_error("'S3' STORAGE only works with uuid_sstable_identifier enabled");
+    }
+
+    return format("/{}/{}/{}", _bucket, sst.generation(), sstable_version_constants::get_component_map(sst.get_version()).at(type));
 }
 
 future<> s3_storage::ensure_remote_prefix(const sstable& sst) {
     if (!_remote_prefix) {
-        auto uuid = co_await sst.manager().system_keyspace().sstables_registry_lookup_entry(_location, sst.generation());
-        _remote_prefix = uuid.to_sstring();
+        co_await sst.manager().system_keyspace().sstables_registry_lookup_entry(_location, sst.generation());
+        _remote_prefix = fmt::to_string(sst.generation());
     }
 }
 
 void s3_storage::open(sstable& sst) {
-    auto uuid = utils::UUID_gen::get_time_UUID();
     entry_descriptor desc("", "", "", sst._generation, sst._version, sst._format, component_type::TOC);
-    sst.manager().system_keyspace().sstables_registry_create_entry(_location, uuid, status_creating, std::move(desc)).get();
-    _remote_prefix = uuid.to_sstring();
+    sst.manager().system_keyspace().sstables_registry_create_entry(_location, status_creating, std::move(desc)).get();
+    _remote_prefix = fmt::to_string(sst._generation);
 
     memory_data_sink_buffers bufs;
     sst.write_toc(

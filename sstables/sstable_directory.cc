@@ -370,7 +370,7 @@ future<> sstable_directory::filesystem_components_lister::process_one(sstable_di
 }
 
 future<> sstable_directory::system_keyspace_components_lister::process(sstable_directory& directory, process_flags flags) {
-    return _sys_ks.sstables_registry_list(_location, [this, flags, &directory] (utils::UUID uuid, sstring status, entry_descriptor desc) {
+    return _sys_ks.sstables_registry_list(_location, [this, flags, &directory] (sstring status, entry_descriptor desc) {
         if (status != "sealed") {
             // FIXME -- handle
             return make_ready_future<>();
@@ -379,7 +379,7 @@ future<> sstable_directory::system_keyspace_components_lister::process(sstable_d
             return make_ready_future<>();
         }
 
-        dirlog.debug("Processing {} entry from {}", uuid, _location);
+        dirlog.debug("Processing {} entry from {}", desc.generation, _location);
         return directory.process_descriptor(std::move(desc), flags);
     });
 }
