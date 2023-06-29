@@ -130,6 +130,13 @@ future<file> filesystem_storage::open_component(const sstable& sst, component_ty
 }
 
 void filesystem_storage::open(sstable& sst) {
+    bool toc_exists = file_exists(sst.filename(component_type::TOC)).get0();
+    if (toc_exists) {
+        // TOC will exist at this point if write_components() was called with
+        // the generation of a sstable that exists.
+        throw std::runtime_error(format("SSTable write failed due to existence of TOC file for generation {} of {}.{}", sst._generation, sst._schema->ks_name(), sst._schema->cf_name()));
+    }
+
     touch_temp_dir(sst).get0();
     auto file_path = sst.filename(component_type::TemporaryTOC);
 
@@ -145,16 +152,6 @@ void filesystem_storage::open(sstable& sst) {
                                     open_flags::exclusive,
                                     options).get0();
     auto w = file_writer(output_stream<char>(std::move(sink)), std::move(file_path));
-
-    bool toc_exists = file_exists(sst.filename(component_type::TOC)).get0();
-    if (toc_exists) {
-        // TOC will exist at this point if write_components() was called with
-        // the generation of a sstable that exists.
-        w.close();
-        remove_file(file_path).get();
-        throw std::runtime_error(format("SSTable write failed due to existence of TOC file for generation {} of {}.{}", sst._generation, sst._schema->ks_name(), sst._schema->cf_name()));
-    }
-
     sst.write_toc(std::move(w));
 
     // Flushing parent directory to guarantee that temporary TOC file reached
