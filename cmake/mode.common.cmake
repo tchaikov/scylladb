@@ -58,7 +58,38 @@ if(Scylla_BUILD_INSTRUMENTED)
   else()
     message(FATAL_ERROR "Unknown Scylla_BUILD_INSTRUMENTED: ${}")
   endif()
+endif()
+
+if(pgo_opts)
   string(APPEND CMAKE_CXX_FLAGS "${pgo_opts}")
   string(APPEND CMAKE_EXE_LINKER_FLAGS "${pgo_opts}")
   string(APPEND CMAKE_SHARED_LINKER_FLAGS "${pgo_opts}")
+endif()
+
+if(Scylla_BUILD_INSTRUMENTED)
+  # options dependent on Scylla_BUILD_INSTRUMENTED
+  set(Scylla_PROFDATA_FILE "" CACHE FILEPATH
+    "Path to the profiling data file to use when compiling.")
+endif()
+
+if(Scylla_PROFDATA_FILE)
+  if(NOT EXISTS "${Scylla_PROFDATA_FILE}")
+    message(FATAL_ERROR
+      "Specified Scylla_PROFDATA_FILE (${Scylla_PROFDATA_FILE}) does not exist")
+  endif()
+  set(profdata_file "${Scylla_PROFDATA_FILE}")
+endif()
+
+if(profdata_file)
+  # When building with PGO, -Wbackend-plugin generates a warning for every
+  # function which changed its control flow graph since the profile was
+  # taken.
+  # We allow stale profiles, so these warnings are just noise to us.
+  # Let's silence them.
+  string(APPEND CMAKE_CXX_FLAGS " -Wno-backend-plugin")
+  if(Scylla_BUILD_INSTRUMENTED MATCHES "IR|CSIR")
+    string(APPEND CMAKE_CXX_FLAGS " -fprofile-use=\"${profdata_file}\"")
+  else()
+    string(APPEND CMAKE_CXX_FLAGS " -fprofile-instr-use=\"${profdata_file}\"")
+  endif()
 endif()
