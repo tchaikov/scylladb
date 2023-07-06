@@ -200,6 +200,7 @@ test_env::impl::impl(test_env_config cfg, sstables::storage_manager* sstm)
     , feature_service(gms::feature_config_from_db_config(*db_config))
     , mgr(cfg.large_data_handler == nullptr ? nop_ld_handler : *cfg.large_data_handler, *db_config, feature_service, cache_tracker, memory::stats().total_memory(), dir_sem, sstm)
     , semaphore(reader_concurrency_semaphore::no_limits{}, "sstables::test_env")
+    , use_uuid(cfg.use_uuid)
     , storage(std::move(cfg.storage))
 { }
 

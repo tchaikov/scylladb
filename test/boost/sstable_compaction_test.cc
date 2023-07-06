@@ -2903,7 +2903,7 @@ SEASTAR_TEST_CASE(sstable_run_based_compaction_test) {
                 .produces(make_insert(keys[i]))
                 .produces_end_of_stream();
         }
-    });
+    }, test_env_config{ .use_uuid = false });
 }
 
 SEASTAR_TEST_CASE(compaction_strategy_aware_major_compaction_test) {
@@ -3035,7 +3035,7 @@ SEASTAR_TEST_CASE(partial_sstable_run_filtered_out_test) {
 
         // make sure partial sstable run has none of its fragments compacted.
         BOOST_REQUIRE(generation_exists(partial_sstable_run_sst->generation()));
-    });
+    }, test_env_config{ .use_uuid = false });
 }
 
 // Make sure that a custom tombstone-gced-only writer will be feeded with gc'able tombstone
@@ -5084,7 +5084,7 @@ SEASTAR_TEST_CASE(cleanup_incremental_compaction_test) {
 
         BOOST_REQUIRE(sstables_closed == sstables_nr);
         BOOST_REQUIRE(sstables_closed_during_cleanup >= sstables_nr / 2);
-    });
+    }, test_env_config{ .use_uuid = false });
 }
 
 SEASTAR_TEST_CASE(cleanup_during_offstrategy_incremental_compaction_test) {
