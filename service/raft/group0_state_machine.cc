@@ -274,7 +274,7 @@ future<> group0_state_machine::transfer_snapshot(raft::server_id from_id, raft::
     // This is virtually impossible. We've just received the
     // snapshot from the sender and must have updated our
     // address map with its IP address.
-    const auto msg = format("Failed to apply snapshot from {}: ip address of the sender is not found", from_ip);
+    const auto msg = seastar::format("Failed to apply snapshot from {}: ip address of the sender is not found", from_ip);
     co_await coroutine::return_exception(raft::transport_error(msg));
   }
   try {

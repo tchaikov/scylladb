@@ -25,26 +25,6 @@ enum class authentication_option {
     options
 };
 
-using authentication_option_set = std::unordered_set<authentication_option>;
-
-using custom_options = std::unordered_map<sstring, sstring>;
-
-struct authentication_options final {
-    std::optional<sstring> password;
-    std::optional<custom_options> options;
-};
-
-inline bool any_authentication_options(const authentication_options& aos) noexcept {
-    return aos.password || aos.options;
-}
-
-class unsupported_authentication_option : public std::invalid_argument {
-public:
-    explicit unsupported_authentication_option(authentication_option k)
-            : std::invalid_argument(format("The {} option is not supported.", k)) {
-    }
-};
-
 }
 
 template <>
@@ -61,3 +41,28 @@ struct fmt::formatter<auth::authentication_option> : fmt::formatter<string_view>
         std::abort();
     }
 };
+
+namespace auth {
+
+using authentication_option_set = std::unordered_set<authentication_option>;
+
+using custom_options = std::unordered_map<sstring, sstring>;
+
+struct authentication_options final {
+    std::optional<sstring> password;
+    std::optional<custom_options> options;
+};
+
+inline bool any_authentication_options(const authentication_options& aos) noexcept {
+    return aos.password || aos.options;
+}
+
+class unsupported_authentication_option : public std::invalid_argument {
+public:
+    explicit unsupported_authentication_option(authentication_option k)
+            : std::invalid_argument(seastar::format("The {} option is not supported.", k)) {
+    }
+};
+
+}
+

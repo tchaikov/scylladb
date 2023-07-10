@@ -3097,7 +3097,7 @@ public:
                 if (table_dropped) {
                     throw replica::no_such_column_family(_shard_task.get_keyspace(),  _cf_name);
                 } else {
-                    throw nested_exception(std::make_exception_ptr(std::runtime_error(format("Failed to repair for keyspace={}, cf={}, range={}", _shard_task.get_keyspace(),
+                    throw nested_exception(std::make_exception_ptr(std::runtime_error(seastar::format("Failed to repair for keyspace={}, cf={}, range={}", _shard_task.get_keyspace(),
                                             _cf_name, _range))), std::move(ex));
                 }
             } else {

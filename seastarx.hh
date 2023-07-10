@@ -9,6 +9,7 @@
 #pragma once
 
 #include <boost/asio/ip/address_v4.hpp>  // avoid conflict between ::socket and seastar::socket
+#include <fmt/core.h>
 
 namespace seastar {
 
@@ -18,9 +19,17 @@ class shared_ptr;
 template <typename T, typename... A>
 shared_ptr<T> make_shared(A&&... a);
 
+template <typename char_type, typename Size, Size max_size, bool NulTerminatee>
+class basic_sstring;
+
+template <typename... A>
+basic_sstring<char, uint32_t, 15, true>
+format(fmt::format_string<A...> fmt, A&&... a);
+
 }
 
 
 using namespace seastar;
 using seastar::shared_ptr;
 using seastar::make_shared;
+using seastar::format;

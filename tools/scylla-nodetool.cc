@@ -686,7 +686,7 @@ void describering_operation(scylla_rest_client& client, const bpo::variables_map
         const auto endpoints = ring_info["endpoints"].GetArray() | std::views::transform([] (const auto& ep) { return rjson::to_string_view(ep); });
         const auto rpc_endpoints = ring_info["rpc_endpoints"].GetArray() | std::views::transform([] (const auto& ep) { return rjson::to_string_view(ep); });
         const auto endpoint_details = ring_info["endpoint_details"].GetArray() | std::views::transform([] (const auto& ep_details) {
-            return format("EndpointDetails(host:{}, datacenter:{}, rack:{})",
+            return seastar::format("EndpointDetails(host:{}, datacenter:{}, rack:{})",
                     rjson::to_string_view(ep_details["host"]),
                     rjson::to_string_view(ep_details["datacenter"]),
                     rjson::to_string_view(ep_details["rack"]));
@@ -3774,7 +3774,7 @@ For more information, see: {})";
     tool_app_template::config app_cfg{
             .name = app_name,
             .description = format(description_template, app_name, nlog.name(), boost::algorithm::join(operations | boost::adaptors::transformed([] (const auto& op) {
-                return format("* {}: {}", op.name(), op.summary());
+                return seastar::format("* {}: {}", op.name(), op.summary());
             }), "\n"), doc_link("operating-scylla/nodetool.html")),
             .logger_name = nlog.name(),
             .lsa_segment_pool_backend_size_mb = 1,

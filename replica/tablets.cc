@@ -257,7 +257,7 @@ future<tablet_metadata> read_tablet_metadata(cql3::query_processor& qp) {
             }
             std::optional<tablet_replica> pending_replica;
             if (pending.size() > 1) {
-                throw std::runtime_error(format("Too many pending replicas for table {} tablet {}: {}",
+                throw std::runtime_error(seastar::format("Too many pending replicas for table {} tablet {}: {}",
                                                 table, current->tid, pending));
             }
             if (pending.size() != 0) {

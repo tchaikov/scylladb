@@ -305,7 +305,7 @@ future<> task_manager::task::add_child(foreign_task_ptr&& child) {
 
 void task_manager::task::start() {
     if (_impl->_status.state != task_state::created) {
-        on_fatal_internal_error(tmlogger, format("{} task with id = {} was started twice", _impl->_module->get_name(), id()));
+        on_fatal_internal_error(tmlogger, seastar::format("{} task with id = {} was started twice", _impl->_module->get_name(), id()));
     }
     _impl->_status.start_time = db_clock::now();
 
@@ -690,7 +690,7 @@ task_manager::module_ptr task_manager::make_module(std::string name) {
 task_manager::module_ptr task_manager::find_module(std::string module_name) {
     auto it = _modules.find(module_name);
     if (it == _modules.end()) {
-        throw std::runtime_error(format("module {} not found", module_name));
+        throw std::runtime_error(seastar::format("module {} not found", module_name));
     }
     return it->second;
 }
