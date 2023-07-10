@@ -179,7 +179,7 @@ future<> service::create_keyspace_if_missing(::service::migration_manager& mm) c
                     true);
 
             co_return co_await mm.announce(::service::prepare_new_keyspace_announcement(db.real_database(), ksm, ts),
-                    std::move(group0_guard), format("auth_service: create {} keyspace", meta::AUTH_KS));
+                    std::move(group0_guard), seastar::format("auth_service: create {} keyspace", meta::AUTH_KS));
         }
     }
 }
@@ -237,12 +237,12 @@ future<bool> service::has_existing_legacy_users() const {
         return make_ready_future<bool>(false);
     }
 
-    static const sstring default_user_query = format("SELECT * FROM {}.{} WHERE {} = ?",
+    static const sstring default_user_query = seastar::format("SELECT * FROM {}.{} WHERE {} = ?",
             meta::AUTH_KS,
             meta::USERS_CF,
             meta::user_name_col_name);
 
-    static const sstring all_users_query = format("SELECT * FROM {}.{} LIMIT 1",
+    static const sstring all_users_query = seastar::format("SELECT * FROM {}.{} LIMIT 1",
             meta::AUTH_KS,
             meta::USERS_CF);
 

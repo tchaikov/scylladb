@@ -129,7 +129,7 @@ std::string topology::debug_format(const node* node) {
     if (!node) {
         return format("node={}", fmt::ptr(node));
     }
-    return format("node={} idx={} host_id={} endpoint={} dc={} rack={} state={} shards={} this_node={}", fmt::ptr(node),
+    return seastar::format("node={} idx={} host_id={} endpoint={} dc={} rack={} state={} shards={} this_node={}", fmt::ptr(node),
             node->idx(), node->host_id(), node->endpoint(), node->dc_rack().dc, node->dc_rack().rack, node::to_string(node->get_state()), node->get_shard_count(), bool(node->is_this_node()));
 }
 
@@ -155,13 +155,13 @@ const node* topology::add_node(node_holder nptr) {
 
     if (nptr->topology() != this) {
         if (nptr->topology()) {
-            on_fatal_internal_error(tlogger, format("topology[{}]: {} belongs to different topology={}", fmt::ptr(this), debug_format(node), fmt::ptr(node->topology())));
+            on_fatal_internal_error(tlogger, seastar::format("topology[{}]: {} belongs to different topology={}", fmt::ptr(this), debug_format(node), fmt::ptr(node->topology())));
         }
         nptr->set_topology(this);
     }
 
     if (node->idx() > 0) {
-        on_internal_error(tlogger, format("topology[{}]: {}: has assigned idx", fmt::ptr(this), debug_format(node)));
+        on_internal_error(tlogger, seastar::format("topology[{}]: {}: has assigned idx", fmt::ptr(this), debug_format(node)));
     }
 
     // Note that _nodes contains also the this_node()
@@ -171,7 +171,7 @@ const node* topology::add_node(node_holder nptr) {
     try {
         if (is_configured_this_node(*node)) {
             if (_this_node) {
-                on_internal_error(tlogger, format("topology[{}]: {}: local node already mapped to {}", fmt::ptr(this), debug_format(node), debug_format(this_node())));
+                on_internal_error(tlogger, seastar::format("topology[{}]: {}: local node already mapped to {}", fmt::ptr(this), debug_format(node), debug_format(this_node())));
             }
             locator::node& n = *_nodes.back();
             n._is_this_node = node::this_node::yes;
@@ -208,13 +208,13 @@ const node* topology::update_node(node* node, std::optional<host_id> opt_id, std
     if (opt_id) {
         if (*opt_id != node->host_id()) {
             if (!*opt_id) {
-                on_internal_error(tlogger, format("Updating node host_id to null is disallowed: {}: new host_id={}", debug_format(node), *opt_id));
+                on_internal_error(tlogger, seastar::format("Updating node host_id to null is disallowed: {}: new host_id={}", debug_format(node), *opt_id));
             }
             if (node->is_this_node() && node->host_id()) {
-                on_internal_error(tlogger, format("This node host_id is already set: {}: new host_id={}", debug_format(node), *opt_id));
+                on_internal_error(tlogger, seastar::format("This node host_id is already set: {}: new host_id={}", debug_format(node), *opt_id));
             }
             if (_nodes_by_host_id.contains(*opt_id)) {
-                on_internal_error(tlogger, format("Cannot update node host_id: {}: new host_id already exists: {}", debug_format(node), debug_format(_nodes_by_host_id[*opt_id])));
+                on_internal_error(tlogger, seastar::format("Cannot update node host_id: {}: new host_id already exists: {}", debug_format(node), debug_format(_nodes_by_host_id[*opt_id])));
             }
             changed = true;
         } else {
@@ -224,7 +224,7 @@ const node* topology::update_node(node* node, std::optional<host_id> opt_id, std
     if (opt_ep) {
         if (*opt_ep != node->endpoint()) {
             if (*opt_ep == inet_address{}) {
-                on_internal_error(tlogger, format("Updating node endpoint to null is disallowed: {}: new endpoint={}", debug_format(node), *opt_ep));
+                on_internal_error(tlogger, seastar::format("Updating node endpoint to null is disallowed: {}: new endpoint={}", debug_format(node), *opt_ep));
             }
             changed = true;
         } else {
@@ -301,7 +301,7 @@ void topology::index_node(const node* node) {
     }
 
     if (node->idx() < 0) {
-        on_internal_error(tlogger, format("topology[{}]: {}: must already have a valid idx", fmt::ptr(this), debug_format(node)));
+        on_internal_error(tlogger, seastar::format("topology[{}]: {}: must already have a valid idx", fmt::ptr(this), debug_format(node)));
     }
 
     // FIXME: for now we allow adding nodes with null host_id, for the following cases:
@@ -311,7 +311,7 @@ void topology::index_node(const node* node) {
     if (node->host_id()) {
         auto [nit, inserted_host_id] = _nodes_by_host_id.emplace(node->host_id(), node);
         if (!inserted_host_id) {
-            on_internal_error(tlogger, format("topology[{}]: {}: node already exists", fmt::ptr(this), debug_format(node)));
+            on_internal_error(tlogger, seastar::format("topology[{}]: {}: node already exists", fmt::ptr(this), debug_format(node)));
         }
     }
     if (node->endpoint() != inet_address{}) {
@@ -323,7 +323,7 @@ void topology::index_node(const node* node) {
                 if (node->host_id()) {
                     _nodes_by_host_id.erase(node->host_id());
                 }
-                on_internal_error(tlogger, format("topology[{}]: {}: node endpoint already mapped to {}", fmt::ptr(this), debug_format(node), debug_format(eit->second)));
+                on_internal_error(tlogger, seastar::format("topology[{}]: {}: node endpoint already mapped to {}", fmt::ptr(this), debug_format(node), debug_format(eit->second)));
             }
         }
         if (node->get_state() != node::state::left) {

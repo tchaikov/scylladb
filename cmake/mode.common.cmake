@@ -2,7 +2,11 @@ set(disabled_warnings
   c++11-narrowing
   mismatched-tags
   overloaded-virtual
-  unsupported-friend)
+  unsupported-friend
+  unused-parameter
+  missing-field-initializers
+  deprecated-copy
+  ignored-qualifiers)
 include(CheckCXXCompilerFlag)
 foreach(warning ${disabled_warnings})
   check_cxx_compiler_flag("-Wno-${warning}" _warning_supported_${warning})
@@ -14,6 +18,7 @@ list(TRANSFORM _supported_warnings PREPEND "-Wno-")
 string(JOIN " " CMAKE_CXX_FLAGS
   "-Wall"
   "-Werror"
+  "-Wextra"
   "-Wno-error=deprecated-declarations"
   "-Wimplicit-fallthrough"
   ${_supported_warnings})

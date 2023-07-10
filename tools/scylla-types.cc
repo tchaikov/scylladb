@@ -349,7 +349,7 @@ $ scylla types shardof --full-compound -t UTF8Type -t SimpleDateType -t UUIDType
 namespace tools {
 
 int scylla_types_main(int argc, char** argv) {
-    auto description_template =
+    constexpr auto description_template =
 R"(scylla-types - a command-line tool to examine values belonging to scylla types.
 
 Usage: scylla types {{action}} [--option1] [--option2] ... {{hex_value1}} [{{hex_value2}}] ...
@@ -376,8 +376,8 @@ $ scylla types {{action}} --help
     const auto operations = boost::copy_range<std::vector<operation>>(operations_with_func | boost::adaptors::map_keys);
     tool_app_template::config app_cfg{
         .name = "scylla-types",
-        .description = format(description_template, boost::algorithm::join(operations | boost::adaptors::transformed(
-                [] (const operation& op) { return format("* {} - {}", op.name(), op.summary()); } ), "\n")),
+        .description = seastar::format(description_template, boost::algorithm::join(operations | boost::adaptors::transformed(
+                [] (const operation& op) { return seastar::format("* {} - {}", op.name(), op.summary()); } ), "\n")),
         .operations = std::move(operations),
         .global_options = &global_options,
         .global_positional_options = get_global_positional_options(),

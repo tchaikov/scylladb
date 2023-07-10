@@ -74,7 +74,7 @@ bool cdc::metadata::streams_available() const {
 cdc::stream_id cdc::metadata::get_stream(api::timestamp_type ts, dht::token tok) {
     auto now = api::new_timestamp();
     if (ts > now + generation_leeway.count()) {
-        throw exceptions::invalid_request_exception(format(
+        throw exceptions::invalid_request_exception(seastar::format(
                 "cdc: attempted to get a stream \"from the future\" ({}; current server time: {})."
                 " With CDC you cannot send writes with timestamps arbitrarily into the future, because we don't"
                 " know what streams will be used at that time.\n"
@@ -88,7 +88,7 @@ cdc::stream_id cdc::metadata::get_stream(api::timestamp_type ts, dht::token tok)
 
     auto it = gen_used_at(now);
     if (it == _gens.end()) {
-        throw std::runtime_error(format(
+        throw std::runtime_error(seastar::format(
                 "cdc::metadata::get_stream: could not find any CDC stream (current time: {})."
                 " Are we in the middle of a cluster upgrade?", format_timestamp(now)));
     }
@@ -97,7 +97,7 @@ cdc::stream_id cdc::metadata::get_stream(api::timestamp_type ts, dht::token tok)
     it = _gens.erase(_gens.begin(), it);
 
     if (it->first > ts) {
-        throw exceptions::invalid_request_exception(format(
+        throw exceptions::invalid_request_exception(seastar::format(
                 "cdc: attempted to get a stream from an earlier generation than the currently used one."
                 " With CDC you cannot send writes with timestamps too far into the past, because that would break"
                 " consistency properties (write timestamp: {}, current generation started at: {})",
@@ -118,7 +118,7 @@ cdc::stream_id cdc::metadata::get_stream(api::timestamp_type ts, dht::token tok)
     // about the current generation in time. We won't be able to prevent it until we introduce transactions.
 
     if (!it->second) {
-        throw std::runtime_error(format(
+        throw std::runtime_error(seastar::format(
                 "cdc: attempted to get a stream from a generation that we know about, but weren't able to retrieve"
                 " (generation timestamp: {}, write timestamp: {}). Make sure that the replicas which contain"
                 " this generation's data are alive and reachable from this node.", format_timestamp(it->first), format_timestamp(ts)));

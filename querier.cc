@@ -377,7 +377,7 @@ std::optional<Querier> querier_cache::lookup_querier(
                     reinterpret_cast<uintptr_t>(&current_sem));
     }
     else if (can_be_used == can_use::no_fatal_semaphore_mismatch) {
-        on_internal_error(qlogger, format("looked-up reader belongs to different semaphore than the one appropriate for this query class: "
+        on_internal_error(qlogger, seastar::format("looked-up reader belongs to different semaphore than the one appropriate for this query class: "
                 "looked-up reader belongs to {} (0x{:x}) the query class appropriate is {} (0x{:x})",
                 q_semaphore_name,
                 q_semaphore_address,

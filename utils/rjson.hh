@@ -27,6 +27,7 @@
  */
 
 #include <string>
+#include <string_view>
 #include <stdexcept>
 #include "utils/base64.hh"
 

@@ -2066,7 +2066,7 @@ future<> gossiper::do_shadow_round(std::unordered_set<gms::inet_address> nodes) 
                 break;
             }
             if (clk::now() > start_time + std::chrono::milliseconds(_gcfg.shadow_round_ms)) {
-                throw std::runtime_error(format("Unable to gossip with any nodes={} (ShadowRound).", nodes));
+                throw std::runtime_error(seastar::format("Unable to gossip with any nodes={} (ShadowRound).", nodes));
             }
             sleep_abortable(std::chrono::seconds(1), _abort_source).get();
             logger.info("Connect nodes={} again ... ({} seconds passed)",
@@ -2091,7 +2091,7 @@ future<> gossiper::do_shadow_round(std::unordered_set<gms::inet_address> nodes) 
                 sleep_abortable(std::chrono::seconds(1), _abort_source).get();
                 if (is_in_shadow_round()) {
                     if (clk::now() > t + std::chrono::milliseconds(_gcfg.shadow_round_ms)) {
-                        throw std::runtime_error(format("Unable to gossip with any nodes={} (ShadowRound),", nodes));
+                        throw std::runtime_error(seastar::format("Unable to gossip with any nodes={} (ShadowRound),", nodes));
                     }
                     logger.info("Connect nodes={} again ... ({} seconds passed)",
                             nodes, std::chrono::duration_cast<std::chrono::seconds>(clk::now() - t).count());
@@ -2182,7 +2182,7 @@ future<> gossiper::add_local_application_state(std::list<std::pair<application_s
             auto permit = gossiper.lock_endpoint(ep_addr, null_permit_id).get0();
             auto ep_state_before = gossiper.get_endpoint_state_ptr(ep_addr);
             if (!ep_state_before) {
-                auto err = format("endpoint_state_map does not contain endpoint = {}, application_states = {}",
+                auto err = seastar::format("endpoint_state_map does not contain endpoint = {}, application_states = {}",
                                   ep_addr, states);
                 throw std::runtime_error(err);
             }
@@ -2370,7 +2370,7 @@ future<> gossiper::wait_alive(std::vector<gms::inet_address> nodes, std::chrono:
             break;
         }
         if (std::chrono::steady_clock::now() > timeout + start_time) {
-            throw std::runtime_error(format("Failed to mark node as alive in {} ms, nodes={}, live_nodes={}",
+            throw std::runtime_error(seastar::format("Failed to mark node as alive in {} ms, nodes={}, live_nodes={}",
                     timeout.count(), nodes, live_nodes));
         }
         co_await sleep_abortable(std::chrono::milliseconds(100), _abort_source);
@@ -2631,7 +2631,7 @@ void gossiper::check_knows_remote_features(std::set<std::string_view>& local_fea
         logger.info("Feature check passed. Local node {} features = {}, Remote common_features = {}",
                 local_endpoint, local_features, common_features);
     } else {
-        throw std::runtime_error(format("Feature check failed. This node can not join the cluster because it does not understand the feature. Local node {} features = {}, Remote common_features = {}", local_endpoint, local_features, common_features));
+        throw std::runtime_error(seastar::format("Feature check failed. This node can not join the cluster because it does not understand the feature. Local node {} features = {}, Remote common_features = {}", local_endpoint, local_features, common_features));
     }
 }
 

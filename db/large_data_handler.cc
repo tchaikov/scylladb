@@ -144,10 +144,10 @@ future<> cql_table_large_data_handler::try_record(std::string_view large_table, 
     sstring extra_fields_str;
     sstring extra_values;
     for (std::string_view field : extra_fields) {
-        extra_fields_str += format(", {}", field);
+        extra_fields_str += seastar::format(", {}", field);
         extra_values += ", ?";
     }
-    const sstring req = format("INSERT INTO system.large_{}s (keyspace_name, table_name, sstable_name, {}_size, partition_key, compaction_time{}) VALUES (?, ?, ?, ?, ?, ?{}) USING TTL 2592000",
+    const sstring req = seastar::format("INSERT INTO system.large_{}s (keyspace_name, table_name, sstable_name, {}_size, partition_key, compaction_time{}) VALUES (?, ?, ?, ?, ?, ?{}) USING TTL 2592000",
             large_table, large_table, extra_fields_str, extra_values);
     const schema &s = *sst.get_schema();
     auto ks_name = s.ks_name();
@@ -182,9 +182,9 @@ future<> cql_table_large_data_handler::internal_record_large_cells(const sstable
     if (clustering_key) {
         const schema &s = *sst.get_schema();
         auto ck_str = key_to_str(*clustering_key, s);
-        return try_record("cell", sst, partition_key, int64_t(cell_size), cell_type, format("/{}/{}", ck_str, column_name), extra_fields, ck_str, column_name);
+        return try_record("cell", sst, partition_key, int64_t(cell_size), cell_type, seastar::format("/{}/{}", ck_str, column_name), extra_fields, ck_str, column_name);
     } else {
-        auto desc = format("static {}", cell_type);
+        auto desc = seastar::format("static {}", cell_type);
         return try_record("cell", sst, partition_key, int64_t(cell_size), desc, format("//{}", column_name), extra_fields, data_value::make_null(utf8_type), column_name);
     }
 }
@@ -197,9 +197,9 @@ future<> cql_table_large_data_handler::internal_record_large_cells_and_collectio
     if (clustering_key) {
         const schema &s = *sst.get_schema();
         auto ck_str = key_to_str(*clustering_key, s);
-        return try_record("cell", sst, partition_key, int64_t(cell_size), cell_type, format("/{}/{}", ck_str, column_name), extra_fields, ck_str, column_name, data_value((int64_t)collection_elements));
+        return try_record("cell", sst, partition_key, int64_t(cell_size), cell_type, seastar::format("/{}/{}", ck_str, column_name), extra_fields, ck_str, column_name, data_value((int64_t)collection_elements));
     } else {
-        auto desc = format("static {}", cell_type);
+        auto desc = seastar::format("static {}", cell_type);
         return try_record("cell", sst, partition_key, int64_t(cell_size), desc, format("//{}", column_name), extra_fields, data_value::make_null(utf8_type), column_name, data_value((int64_t)collection_elements));
     }
 }
@@ -210,7 +210,7 @@ future<> cql_table_large_data_handler::record_large_rows(const sstables::sstable
     if (clustering_key) {
         const schema &s = *sst.get_schema();
         std::string ck_str = key_to_str(*clustering_key, s);
-        return try_record("row", sst, partition_key, int64_t(row_size), "row", format("/{}", ck_str), extra_fields,  ck_str);
+        return try_record("row", sst, partition_key, int64_t(row_size), "row", seastar::format("/{}", ck_str), extra_fields,  ck_str);
     } else {
         return try_record("row", sst, partition_key, int64_t(row_size), "static row", "", extra_fields, data_value::make_null(utf8_type));
     }
@@ -219,7 +219,7 @@ future<> cql_table_large_data_handler::record_large_rows(const sstables::sstable
 future<> cql_table_large_data_handler::delete_large_data_entries(const schema& s, sstring sstable_name, std::string_view large_table_name) const {
     assert(_sys_ks);
     const sstring req =
-            format("DELETE FROM system.{} WHERE keyspace_name = ? AND table_name = ? AND sstable_name = ?",
+            seastar::format("DELETE FROM system.{} WHERE keyspace_name = ? AND table_name = ? AND sstable_name = ?",
                     large_table_name);
     large_data_logger.debug("Dropping entries from {}: ks = {}, table = {}, sst = {}",
             large_table_name, s.ks_name(), s.cf_name(), sstable_name);

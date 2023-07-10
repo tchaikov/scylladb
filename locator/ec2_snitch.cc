@@ -74,7 +74,7 @@ future<sstring> ec2_snitch::aws_api_call(sstring addr, uint16_t port, sstring cm
                 try {
                     std::rethrow_exception(ep);
                 } catch (const std::system_error &e) {
-                    logger().error(e.what());
+                    logger().error("{}", e.what());
                     if (i >= AWS_API_CALL_RETRIES - 1) {
                         logger().error("Maximum number of retries exceeded");
                         throw e;

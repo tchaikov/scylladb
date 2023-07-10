@@ -715,7 +715,7 @@ query_processor::parse_statement(const sstring_view& query) {
         throw;
     } catch (const std::exception& e) {
         log.error("The statement: {} could not be parsed: {}", query, e.what());
-        throw exceptions::syntax_exception(format("Failed parsing statement: [{}] reason: {}", query, e.what()));
+        throw exceptions::syntax_exception(seastar::format("Failed parsing statement: [{}] reason: {}", query, e.what()));
     }
 }
 
@@ -733,7 +733,7 @@ query_processor::parse_statements(std::string_view queries) {
         throw;
     } catch (const std::exception& e) {
         log.error("The statements: {} could not be parsed: {}", queries, e.what());
-        throw exceptions::syntax_exception(format("Failed parsing statements: [{}] reason: {}", queries, e.what()));
+        throw exceptions::syntax_exception(seastar::format("Failed parsing statements: [{}] reason: {}", queries, e.what()));
     }
 }
 

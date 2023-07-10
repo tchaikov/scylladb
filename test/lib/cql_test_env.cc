@@ -385,7 +385,7 @@ public:
     }
 
     future<> create_keyspace(std::string_view name) {
-        auto query = format("create keyspace {} with replication = {{ 'class' : 'org.apache.cassandra.locator.NetworkTopologyStrategy', 'replication_factor' : 1 }};", name);
+        auto query = seastar::format("create keyspace {} with replication = {{ 'class' : 'org.apache.cassandra.locator.NetworkTopologyStrategy', 'replication_factor' : 1 }};", name);
         return execute_cql(query).discard_result();
     }
 

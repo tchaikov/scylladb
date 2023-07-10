@@ -834,13 +834,13 @@ std::ostream& operator<<(std::ostream& os, const exceptional_result<Op>& r) {
     try {
         std::rethrow_exception(r.eptr);
     } catch (const std::exception& e) {
-        return os << format("exceptional{{i:{}, ex:{}}}", r.op, e);
+        return os << seastar::format("exceptional{{i:{}, ex:{}}}", r.op, e);
     }
 }
 
 template <operation::Executable Op>
 std::ostream& operator<<(std::ostream& os, const completion<Op>& c) {
-    return os << format("c{{r:{}, t:{}, tid:{}}}", c.result, c.time, c.thread);
+    return os << seastar::format("c{{r:{}, t:{}, tid:{}}}", c.result, c.time, c.thread);
 }
 
 } // namespace operation

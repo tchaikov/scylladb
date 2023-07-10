@@ -326,7 +326,7 @@ storage_options::tiered storage_options::tiered::from_map(const std::map<sstring
     auto get_value = [&](sstring key) {
         auto found = values.find(key);
         if (found == values.end()) {
-            throw std::runtime_error(format("Missing {} option: {}", name, key));
+            throw std::runtime_error(seastar::format("Missing {} option: {}", name, key));
         }
         return found->second;
     };
@@ -335,7 +335,7 @@ storage_options::tiered storage_options::tiered::from_map(const std::map<sstring
         .endpoint = get_value("endpoint"),
     };
     if (values.size() > 2) {
-        throw std::runtime_error(format("Extraneous options for {}: {}",
+        throw std::runtime_error(seastar::format("Extraneous options for {}: {}",
                                         name, fmt::join(values | boost::adaptors::map_keys, ",")));
     }
     return options;
@@ -363,7 +363,7 @@ storage_options::value_type storage_options::from_map(std::string_view type, std
     if (type == tiered::name) {
         return tiered::from_map(values);
     }
-    throw std::runtime_error(format("Unknown storage type: {}", type));
+    throw std::runtime_error(seastar::format("Unknown storage type: {}", type));
 }
 
 std::string_view storage_options::type_string() const {
@@ -379,7 +379,7 @@ bool storage_options::can_update_to(const storage_options& new_options) {
 }
 
 no_such_keyspace::no_such_keyspace(std::string_view ks_name)
-    : runtime_error{format("Can't find a keyspace {}", ks_name)}
+    : runtime_error{seastar::format("Can't find a keyspace {}", ks_name)}
 {
 }
 
@@ -389,12 +389,12 @@ no_such_column_family::no_such_column_family(const table_id& uuid)
 }
 
 no_such_column_family::no_such_column_family(std::string_view ks_name, std::string_view cf_name)
-    : runtime_error{format("Can't find a column family {} in keyspace {}", cf_name, ks_name)}
+    : runtime_error{seastar::format("Can't find a column family {} in keyspace {}", cf_name, ks_name)}
 {
 }
 
 no_such_column_family::no_such_column_family(std::string_view ks_name, const table_id& uuid)
-    : runtime_error{format("Can't find a column family with UUID {} in keyspace {}", uuid, ks_name)}
+    : runtime_error{seastar::format("Can't find a column family with UUID {} in keyspace {}", uuid, ks_name)}
 {
 }
 

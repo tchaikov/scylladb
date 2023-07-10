@@ -74,7 +74,7 @@ static bool has_salted_hash(const cql3::untyped_result_set_row& row) {
 }
 
 static const sstring& update_row_query() {
-    static const sstring update_row_query = format("UPDATE {} SET {} = ? WHERE {} = ?",
+    static const sstring update_row_query = seastar::format("UPDATE {} SET {} = ? WHERE {} = ?",
             meta::roles_table::qualified_name,
             SALTED_HASH,
             meta::roles_table::role_col_name);
@@ -89,7 +89,7 @@ bool password_authenticator::legacy_metadata_exists() const {
 
 future<> password_authenticator::migrate_legacy_metadata() const {
     plogger.info("Starting migration of legacy authentication metadata.");
-    static const sstring query = format("SELECT * FROM {}.{}", meta::AUTH_KS, legacy_table_name);
+    static const sstring query = seastar::format("SELECT * FROM {}.{}", meta::AUTH_KS, legacy_table_name);
 
     return _qp.execute_internal(
             query,
@@ -217,7 +217,7 @@ future<authenticated_user> password_authenticator::authenticate(
     // Rely on query processing caching statements instead, and lets assume
     // that a map lookup string->statement is not gonna kill us much.
     return futurize_invoke([this, username, password] {
-        static const sstring query = format("SELECT {} FROM {} WHERE {} = ?",
+        static const sstring query = seastar::format("SELECT {} FROM {} WHERE {} = ?",
                 SALTED_HASH,
                 meta::roles_table::qualified_name,
                 meta::roles_table::role_col_name);
@@ -269,7 +269,7 @@ future<> password_authenticator::alter(std::string_view role_name, const authent
         return make_ready_future<>();
     }
 
-    static const sstring query = format("UPDATE {} SET {} = ? WHERE {} = ?",
+    static const sstring query = seastar::format("UPDATE {} SET {} = ? WHERE {} = ?",
             meta::roles_table::qualified_name,
             SALTED_HASH,
             meta::roles_table::role_col_name);
@@ -283,7 +283,7 @@ future<> password_authenticator::alter(std::string_view role_name, const authent
 }
 
 future<> password_authenticator::drop(std::string_view name) const {
-    static const sstring query = format("DELETE {} FROM {} WHERE {} = ?",
+    static const sstring query = seastar::format("DELETE {} FROM {} WHERE {} = ?",
             SALTED_HASH,
             meta::roles_table::qualified_name,
             meta::roles_table::role_col_name);

@@ -1439,7 +1439,7 @@ public:
                 for (const auto& p: *_snapshots) {
                     snapshot_ids.push_back(p.first);
                 }
-                BOOST_TEST_INFO(format("snapshot ids: [{}]", snapshot_ids));
+                BOOST_TEST_INFO(seastar::format("snapshot ids: [{}]", snapshot_ids));
                 BOOST_CHECK_LE(snapshot_ids.size(), 2);
             }
         }
@@ -2577,7 +2577,7 @@ struct raft_call {
     }
 
     friend std::ostream& operator<<(std::ostream& os, const raft_call& c) {
-        return os << format("raft_call{{input:{},timeout:{}}}", c.input, c.timeout);
+        return os << seastar::format("raft_call{{input:{},timeout:{}}}", c.input, c.timeout);
     }
 };
 
@@ -2612,7 +2612,7 @@ struct raft_read {
     }
 
     friend std::ostream& operator<<(std::ostream& os, const raft_read& r) {
-        return os << format("raft_read{{id:{}, timeout:{}}}", r.read_id, r.timeout);
+        return os << seastar::format("raft_read{{id:{}, timeout:{}}}", r.read_id, r.timeout);
     }
 };
 
@@ -2683,7 +2683,7 @@ public:
     }
 
     friend std::ostream& operator<<(std::ostream& os, const network_majority_grudge& p) {
-        return os << format("network_majority_grudge{{duration:{}}}", p._duration);
+        return os << seastar::format("network_majority_grudge{{duration:{}}}", p._duration);
     }
 };
 
@@ -2810,7 +2810,7 @@ struct reconfiguration {
     }
 
     friend std::ostream& operator<<(std::ostream& os, const reconfiguration& r) {
-        return os << format("reconfiguration{{timeout:{}}}", r.timeout);
+        return os << seastar::format("reconfiguration{{timeout:{}}}", r.timeout);
     }
 };
 
@@ -2850,7 +2850,7 @@ struct stop_crash {
     }
 
     friend std::ostream& operator<<(std::ostream& os, const stop_crash& c) {
-        return os << format("stop_crash{{delay:{}}}", c.restart_delay);
+        return os << seastar::format("stop_crash{{delay:{}}}", c.restart_delay);
     }
 
     friend std::ostream& operator<<(std::ostream& os, const result_type&) {
@@ -2964,7 +2964,8 @@ public:
     friend std::ostream& operator<<(std::ostream& os, const append_seq& s) {
         // TODO: don't copy the elements
         std::vector<elem_t> v{s._seq->begin(), s._seq->begin() + s._end};
-        return os << format("seq({} _end {})", v, s._end);
+        fmt::print(os, "seq({} _end {})", v, s._end);
+        return os;
     }
 
 private:
@@ -3042,7 +3043,7 @@ struct append_reg_model {
         try {
             completion(x, prev);
         } catch (inconsistency& e) {
-            e.what += format("\nwhen completing append: {}\nprev: {}\nmodel: {}", x, prev, seq);
+            e.what += seastar::format("\nwhen completing append: {}\nprev: {}\nmodel: {}", x, prev, seq);
             throw;
         }
         returned.insert(x);
@@ -3107,14 +3108,14 @@ private:
             assert(idx < seq.size());
 
             if (prev_x != seq[idx - 1].elem) {
-                throw inconsistency{format(
+                throw inconsistency{seastar::format(
                     "elem {} completed again (existing at idx {}), but prev elem does not match existing model"
                     "\nprev elem: {}\nmodel prev elem: {}\nprev: {} model up to idx: {}",
                     x, idx, prev_x, seq[idx - 1].elem, prev, std::vector<entry>{seq.begin(), seq.begin()+idx})};
             }
 
             if (prev.digest() != seq[idx - 1].digest) {
-                auto err = format(
+                auto err = seastar::format(
                     "elem {} completed again (existing at idx {}), but prev does not match existing model"
                     "\n prev: {}\nmodel up to idx: {}",
                     x, idx, prev, std::vector<entry>{seq.begin(), seq.begin()+idx});
@@ -3139,13 +3140,13 @@ private:
         // Check that the existing tail matches our tail.
         assert(!seq.empty());
         if (prev_x != seq.back().elem) {
-            throw inconsistency{format(
+            throw inconsistency{seastar::format(
                 "new completion (elem: {}) but prev elem does not match existing model"
                 "\nprev elem: {}\nmodel prev elem: {}\nprev: {}\n model: {}",
                 x, prev_x, seq.back().elem, prev, seq)};
         }
         if (prev.digest() != seq.back().digest) {
-            auto err = format(
+            auto err = seastar::format(
                 "new completion (elem: {}) but prev does not match existing model"
                 "\nprev: {}\n model: {}",
                 x, prev, seq);

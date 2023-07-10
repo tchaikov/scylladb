@@ -33,14 +33,36 @@ namespace auth {
 class invalid_resource_name : public std::invalid_argument {
 public:
     explicit invalid_resource_name(std::string_view name)
-            : std::invalid_argument(format("The resource name '{}' is invalid.", name)) {
+            : std::invalid_argument(seastar::format("The resource name '{}' is invalid.", name)) {
     }
 };
 
 enum class resource_kind {
     data, role, service_level, functions
 };
+}
 
+
+template <>
+struct fmt::formatter<auth::resource_kind> : fmt::formatter<std::string_view> {
+    template <typename FormatContext>
+    auto format(const auth::resource_kind kind, FormatContext& ctx) const {
+        using enum auth::resource_kind;
+        switch (kind) {
+        case data:
+            return formatter<std::string_view>::format("data", ctx);
+        case role:
+            return formatter<std::string_view>::format("role", ctx);
+        case service_level:
+            return formatter<std::string_view>::format("service_level", ctx);
+        case functions:
+            return formatter<std::string_view>::format("functions", ctx);
+        }
+        std::abort();
+    }
+};
+
+namespace auth {
 ///
 /// Type tag for constructing data resources.
 ///
@@ -129,7 +151,7 @@ class resource_kind_mismatch : public std::invalid_argument {
 public:
     explicit resource_kind_mismatch(resource_kind expected, resource_kind actual)
         : std::invalid_argument(
-            format("This resource has kind '{}', but was expected to have kind '{}'.", actual, expected)) {
+            seastar::format("This resource has kind '{}', but was expected to have kind '{}'.", actual, expected)) {
     }
 };
 
@@ -255,25 +277,6 @@ sstring encode_signature(std::string_view name, std::vector<data_type> args);
 std::pair<sstring, std::vector<data_type>> decode_signature(std::string_view encoded_signature);
 
 }
-
-template <>
-struct fmt::formatter<auth::resource_kind> : fmt::formatter<std::string_view> {
-    template <typename FormatContext>
-    auto format(const auth::resource_kind kind, FormatContext& ctx) const {
-        using enum auth::resource_kind;
-        switch (kind) {
-        case data:
-            return formatter<std::string_view>::format("data", ctx);
-        case role:
-            return formatter<std::string_view>::format("role", ctx);
-        case service_level:
-            return formatter<std::string_view>::format("service_level", ctx);
-        case functions:
-            return formatter<std::string_view>::format("functions", ctx);
-        }
-        std::abort();
-    }
-};
 
 namespace std {
 

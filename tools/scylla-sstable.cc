@@ -1679,7 +1679,7 @@ class json_mutation_stream_parser {
 #else
             auto parse_error = fmt::format(msg, std::forward<decltype(args)>(args)...);
 #endif
-            sst_log.trace(parse_error.c_str());
+            sst_log.trace("{}", parse_error.c_str());
             _queue.abort(std::make_exception_ptr(std::runtime_error(parse_error)));
             return false;
         }
@@ -2838,8 +2838,8 @@ $ scylla sstable validate /path/to/md-123456-big-Data.db /path/to/md-123457-big-
     const auto operations = boost::copy_range<std::vector<operation>>(operations_with_func | boost::adaptors::map_keys);
     tool_app_template::config app_cfg{
             .name = app_name,
-            .description = format(description_template, app_name, boost::algorithm::join(operations | boost::adaptors::transformed([] (const auto& op) {
-                return format("* {}: {}", op.name(), op.summary());
+            .description = seastar::format(description_template, app_name, boost::algorithm::join(operations | boost::adaptors::transformed([] (const auto& op) {
+                return seastar::format("* {}: {}", op.name(), op.summary());
             }), "\n")),
             .logger_name = app_name,
             .lsa_segment_pool_backend_size_mb = 100,

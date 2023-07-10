@@ -146,7 +146,7 @@ future<std::optional<auth::authenticated_user>> auth::certificate_authenticator:
             co_return username;
         }
     }
-    throw exceptions::authentication_exception(format("Subject '{}'/'{}' does not match any query expression", subject, altname));
+    throw exceptions::authentication_exception(seastar::format("Subject '{}'/'{}' does not match any query expression", subject, altname));
 }
 
 

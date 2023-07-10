@@ -205,7 +205,7 @@ std::ostream &operator<<(std::ostream &os, const service_level_resource_view &v)
 }
 
 sstring encode_signature(std::string_view name, std::vector<data_type> args) {
-    return format("{}[{}]", name,
+    return seastar::format("{}[{}]", name,
             fmt::join(args | boost::adaptors::transformed([] (const data_type t) {
                 return t->name();
             }), "^"));

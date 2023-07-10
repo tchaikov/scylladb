@@ -48,7 +48,7 @@ future<bool> default_role_row_satisfies(
         cql3::query_processor& qp,
         std::function<bool(const cql3::untyped_result_set_row&)> p,
         std::optional<std::string> rolename) {
-    static const sstring query = format("SELECT * FROM {} WHERE {} = ?",
+    static const sstring query = seastar::format("SELECT * FROM {} WHERE {} = ?",
             meta::roles_table::qualified_name,
             meta::roles_table::role_col_name);
 
@@ -69,7 +69,7 @@ future<bool> any_nondefault_role_row_satisfies(
         cql3::query_processor& qp,
         std::function<bool(const cql3::untyped_result_set_row&)> p,
         std::optional<std::string> rolename) {
-    static const sstring query = format("SELECT * FROM {}", meta::roles_table::qualified_name);
+    static const sstring query = seastar::format("SELECT * FROM {}", meta::roles_table::qualified_name);
 
     auto results = co_await qp.execute_internal(query, db::consistency_level::QUORUM
         , internal_distributed_query_state(), cql3::query_processor::cache_internal::no

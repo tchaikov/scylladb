@@ -157,7 +157,7 @@ void client::authorize(http::request& req) {
     }
     unsigned header_nr = signed_headers.size();
     for (const auto& h : signed_headers) {
-        signed_headers_list += format("{}{}", h.first, header_nr == 1 ? "" : ";");
+        signed_headers_list += seastar::format("{}{}", h.first, header_nr == 1 ? "" : ";");
         header_nr--;
     }
     sstring query_string = "";
@@ -167,7 +167,7 @@ void client::authorize(http::request& req) {
     }
     unsigned query_nr = query_parameters.size();
     for (const auto& q : query_parameters) {
-        query_string += format("{}={}{}", q.first, q.second, query_nr == 1 ? "" : "&");
+        query_string += seastar::format("{}={}{}", q.first, q.second, query_nr == 1 ? "" : "&");
         query_nr--;
     }
     auto sig = utils::aws::get_signature(_cfg->aws->key, _cfg->aws->secret, _host, req._url, req._method,
@@ -175,7 +175,7 @@ void client::authorize(http::request& req) {
         signed_headers_list, signed_headers,
         utils::aws::unsigned_content,
         _cfg->aws->region, "s3", query_string);
-    req._headers["Authorization"] = format("AWS4-HMAC-SHA256 Credential={}/{}/{}/s3/aws4_request,SignedHeaders={},Signature={}", _cfg->aws->key, time_point_st, _cfg->aws->region, signed_headers_list, sig);
+    req._headers["Authorization"] = seastar::format("AWS4-HMAC-SHA256 Credential={}/{}/{}/s3/aws4_request,SignedHeaders={},Signature={}", _cfg->aws->key, time_point_st, _cfg->aws->region, signed_headers_list, sig);
 }
 
 future<> client::make_request(http::request req, http::experimental::client::reply_handler handle, http::reply::status_type expected) {
