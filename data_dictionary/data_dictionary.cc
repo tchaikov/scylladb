@@ -352,7 +352,10 @@ bool storage_options::is_local_type() const noexcept {
 
 storage_options::value_type storage_options::from_map(std::string_view type, std::map<sstring, sstring> values) {
     if (type == local::name) {
-        return local::from_map(values);
+        values.emplace("bucket", "testbucket");
+        values.emplace("endpoint", "127.0.0.1");
+        // return local::from_map(values);
+        return tiered::from_map(values);
     }
     if (type == s3::name) {
         return s3::from_map(values);
