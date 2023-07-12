@@ -2462,7 +2462,7 @@ SEASTAR_TEST_CASE(remove_leader_with_forwarding_finishes) {
         // We want server 2 to either learn from server 1 about the removal,
         // or become a leader and learn from itself; in both cases the call should finish (no timeout).
         auto result = co_await env.modify_config(id2, std::vector<raft::server_id>{}, {id1}, timer.now() + 200_t, timer);
-        tlogger.info("env.modify_config result {}", result);
+        //tlogger.info("env.modify_config result {}", result);
         assert(std::holds_alternative<std::monostate>(result));
     });
 }
