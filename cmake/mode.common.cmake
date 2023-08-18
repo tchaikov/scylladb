@@ -75,6 +75,9 @@ if(Scylla_BUILD_INSTRUMENTED)
   # options dependent on Scylla_BUILD_INSTRUMENTED
   set(Scylla_PROFDATA_FILE "" CACHE FILEPATH
     "Path to the profiling data file to use when compiling.")
+  set(Scylla_PROFDATA_COMPRESSED_FILE
+    "pgo/profiles/${CMAKE_SYSTEM_PROCESSOR}/profile.profdata.xz" CACHE FILEPATH
+    "Path to the compressed profiling data file to use when compiling")
 endif()
 
 if(Scylla_PROFDATA_FILE)
@@ -83,6 +86,24 @@ if(Scylla_PROFDATA_FILE)
       "Specified Scylla_PROFDATA_FILE (${Scylla_PROFDATA_FILE}) does not exist")
   endif()
   set(profdata_file "${Scylla_PROFDATA_FILE}")
+endif()
+
+if(Scylla_PROFDATA_COMPRESSED_FILE)
+  # read the header to see if the file is fetched by LFS upon checkout
+  file(READ "${Scylla_PROFDATA_COMPRESSED_FILE}" file_header LIMIT 7)
+  if(file_header MATCHES "version")
+    message(FATAL_ERROR "Please install git-lfs for using profdata stored in Git LFS")
+  endif()
+  get_filename_component(profdata_filename ${Scylla_PROFDATA_COMPRESSED_FILE} NAME_WLE)
+  file(ARCHIVE_EXTRACT
+    INPUT "${Scylla_PROFDATA_COMPRESSED_FILE}"
+    DESTINATION "${CMAKE_BINARY_DIR}")
+  set(profdata_file "${CMAKE_BINARY_DIR}/${prfdata_filename}")
+endif()
+
+if(Scylla_PROFDATA_FILE AND Scylla_PROFDATA_COMPRESSED_FILE)
+  message(FATAL_ERROR
+    "Both Scylla_PROFDATA_FILE and Scylla_PROFDATA_COMPRESSED_FILE are specified!")
 endif()
 
 if(profdata_file)
