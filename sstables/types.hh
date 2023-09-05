@@ -490,7 +490,8 @@ enum sstable_feature : uint8_t {
     CorrectStaticCompact = 3, // See #4139
     CorrectEmptyCounters = 4, // See #4363
     CorrectUDTsInCollections = 5, // See #6130
-    End = 6,
+    UnsignedLocalDeletionTime = 6, // See #15015
+    End = 7,
 };
 
 // Scylla-specific features enabled for a particular sstable.
