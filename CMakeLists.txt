@@ -238,3 +238,6 @@ target_include_directories(scylla PRIVATE
 if(Scylla_BUILD_INSTRUMENTED)
   add_subdirectory(pgo)
 endif()
+
+# packaging
+add_subdirectory(dist)
