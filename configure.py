@@ -1748,6 +1748,79 @@ def query_seastar_flags(pc_file, link_static_cxx=False):
     return cflags, libs
 
 
+def create_rules_for_all(**kwargs):
+    return textwrap.dedent('''\
+        configure_args = {configure_args}
+        builddir = {outdir}
+        cxx = {cxx}
+        cxxflags = --std=gnu++20 {user_cflags} {distro_extra_cflags} {warnings} {defines}
+        ldflags = {linker_flags} {user_ldflags} {distro_extra_ldflags}
+        ldflags_build = {linker_flags} {distro_extra_ldflags}
+        libs = {libs}
+        pool link_pool
+            depth = {link_pool_depth}
+        pool submodule_pool
+            depth = 1
+        rule gen
+            command = echo -e $text > $out
+            description = GEN $out
+        rule swagger
+            command = {seastar_path}/scripts/seastar-json2code.py --create-cc -f $in -o $out
+            description = SWAGGER $out
+        rule serializer
+            command = {python} ./idl-compiler.py --ns ser -f $in -o $out
+            description = IDL compiler $out
+        rule ninja
+            command = {ninja} -C $subdir $target
+            restat = 1
+            description = NINJA $out
+        rule ragel
+            # sed away a bug in ragel 7 that emits some extraneous _nfa* variables
+            # (the $$ is collapsed to a single one by ninja)
+            command = {ragel_exec} -G2 -o $out $in && sed -i -e '1h;2,$$H;$$!d;g' -re 's/static const char _nfa[^;]*;//g' $out
+            description = RAGEL $out
+        rule run
+            command = $in > $out
+            description = GEN $out
+        rule copy
+            command = cp --reflink=auto $in $out
+            description = COPY $out
+        rule strip
+            command = scripts/strip.sh $in
+        rule package
+            command = scripts/create-relocatable-package.py --build-dir build/$mode $out
+        rule stripped_package
+            command = scripts/create-relocatable-package.py --stripped --build-dir build/$mode $out
+        rule debuginfo_package
+            command = dist/debuginfo/scripts/create-relocatable-package.py --build-dir build/$mode $out
+        rule rpmbuild
+            command = reloc/build_rpm.sh --reloc-pkg $in --builddir $out
+        rule debbuild
+            command = reloc/build_deb.sh --reloc-pkg $in --builddir $out
+        rule unified
+            command = unified/build_unified.sh --build-dir build/$mode --unified-pkg $out
+        rule rust_header
+            command = cxxbridge --include rust/cxx.h --header $in > $out
+            description = RUST_HEADER $out
+        rule rust_source
+            command = cxxbridge --include rust/cxx.h $in > $out
+            description = RUST_SOURCE $out
+        rule cxxbridge_header
+            command = cxxbridge --header > $out
+        rule c2wasm
+            command = clang --target=wasm32 --no-standard-libraries -Wl,--export-all -Wl,--no-entry $in -o $out
+            description = C2WASM $out
+        rule rust2wasm
+            command = cargo build --target=wasm32-wasi --example=$example --locked --manifest-path=test/resource/wasm/rust/Cargo.toml --target-dir=$builddir/wasm/ $
+                && wasm-opt -Oz $builddir/wasm/wasm32-wasi/debug/examples/$example.wasm -o $builddir/wasm/$example.wasm $
+                && wasm-strip $builddir/wasm/$example.wasm
+            description = RUST2WASM $out
+        rule wasm2wat
+            command = wasm2wat $in > $out
+            description = WASM2WAT $out
+        ''').format(**kwargs)
+
+
 def create_rules_for_mode(mode, antlr3_exec, test_repeat, test_timeout, /, **modeval):
     fmt_lib = 'fmt'
     return textwrap.dedent('''\
@@ -1878,76 +1951,24 @@ else:
     ragel_exec = "ragel"
 
 with open(buildfile, 'w') as f:
-    f.write(textwrap.dedent('''\
-        configure_args = {configure_args}
-        builddir = {outdir}
-        cxx = {cxx}
-        cxxflags = --std=gnu++20 {user_cflags} {distro_extra_cflags} {warnings} {defines}
-        ldflags = {linker_flags} {user_ldflags} {distro_extra_ldflags}
-        ldflags_build = {linker_flags} {distro_extra_ldflags}
-        libs = {libs}
-        pool link_pool
-            depth = {link_pool_depth}
-        pool submodule_pool
-            depth = 1
-        rule gen
-            command = echo -e $text > $out
-            description = GEN $out
-        rule swagger
-            command = {args.seastar_path}/scripts/seastar-json2code.py --create-cc -f $in -o $out
-            description = SWAGGER $out
-        rule serializer
-            command = {python} ./idl-compiler.py --ns ser -f $in -o $out
-            description = IDL compiler $out
-        rule ninja
-            command = {ninja} -C $subdir $target
-            restat = 1
-            description = NINJA $out
-        rule ragel
-            # sed away a bug in ragel 7 that emits some extraneous _nfa* variables
-            # (the $$ is collapsed to a single one by ninja)
-            command = {ragel_exec} -G2 -o $out $in && sed -i -e '1h;2,$$H;$$!d;g' -re 's/static const char _nfa[^;]*;//g' $out
-            description = RAGEL $out
-        rule run
-            command = $in > $out
-            description = GEN $out
-        rule copy
-            command = cp --reflink=auto $in $out
-            description = COPY $out
-        rule strip
-            command = scripts/strip.sh $in
-        rule package
-            command = scripts/create-relocatable-package.py --build-dir build/$mode $out
-        rule stripped_package
-            command = scripts/create-relocatable-package.py --stripped --build-dir build/$mode $out
-        rule debuginfo_package
-            command = dist/debuginfo/scripts/create-relocatable-package.py --build-dir build/$mode $out
-        rule rpmbuild
-            command = reloc/build_rpm.sh --reloc-pkg $in --builddir $out
-        rule debbuild
-            command = reloc/build_deb.sh --reloc-pkg $in --builddir $out
-        rule unified
-            command = unified/build_unified.sh --build-dir build/$mode --unified-pkg $out
-        rule rust_header
-            command = cxxbridge --include rust/cxx.h --header $in > $out
-            description = RUST_HEADER $out
-        rule rust_source
-            command = cxxbridge --include rust/cxx.h $in > $out
-            description = RUST_SOURCE $out
-        rule cxxbridge_header
-            command = cxxbridge --header > $out
-        rule c2wasm
-            command = clang --target=wasm32 --no-standard-libraries -Wl,--export-all -Wl,--no-entry $in -o $out
-            description = C2WASM $out
-        rule rust2wasm
-            command = cargo build --target=wasm32-wasi --example=$example --locked --manifest-path=test/resource/wasm/rust/Cargo.toml --target-dir=$builddir/wasm/ $
-                && wasm-opt -Oz $builddir/wasm/wasm32-wasi/debug/examples/$example.wasm -o $builddir/wasm/$example.wasm $
-                && wasm-strip $builddir/wasm/$example.wasm
-            description = RUST2WASM $out
-        rule wasm2wat
-            command = wasm2wat $in > $out
-            description = WASM2WAT $out
-        ''').format(**globals()))
+    cxxflags = dict(user_cflags=user_cflags,
+                    distro_extra_ldflags=distro_extra_ldflags,
+                    warnings=warnings,
+                    defines=defines)
+    ldflags = dict(linker_flags=linker_flags,
+                   user_ldflags=user_ldflags,
+                   distro_extra_ldflags=distro_extra_ldflags)
+    f.write(create_rules_for_all(configure_args=configure_args,
+                                 outdir=outdir,
+                                 cxx=cxx,
+                                 **cxxflags,
+                                 **ldflags,
+                                 libs=libs,
+                                 link_pool_depth=link_pool_depth,
+                                 seastar_path=args.seastar_path,
+                                 python=python,
+                                 ninja=ninja,
+                                 ragel_exec=ragel_exec))
     for binary in sorted(wasms):
         src = wasm_deps[binary]
         wasm = binary[:-4] + '.wasm'
