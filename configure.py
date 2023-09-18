@@ -1747,6 +1747,74 @@ def query_seastar_flags(pc_file, link_static_cxx=False):
 
     return cflags, libs
 
+
+def create_rules_for_mode(mode, antlr3_exec, test_repeat, test_timeout, /, **modeval):
+    fmt_lib = 'fmt'
+    return textwrap.dedent('''\
+            cxx_ld_flags_{mode} = {cxx_ld_flags}
+            ld_flags_{mode} = $cxx_ld_flags_{mode} {lib_ldflags}
+            cxxflags_{mode} = $cxx_ld_flags_{mode} {lib_cflags} {cxxflags} -iquote. -iquote $builddir/{mode}/gen
+            libs_{mode} = -l{fmt_lib}
+            seastar_libs_{mode} = {seastar_libs}
+            seastar_testing_libs_{mode} = {seastar_testing_libs}
+            rule cxx.{mode}
+              command = $cxx -MD -MT $out -MF $out.d {seastar_cflags} $cxxflags_{mode} $cxxflags $obj_cxxflags -c -o $out $in
+              description = CXX $out
+              depfile = $out.d
+            rule link.{mode}
+              command = $cxx  $ld_flags_{mode} $ldflags -o $out $in $libs $libs_{mode}
+              description = LINK $out
+              pool = link_pool
+            rule link_stripped.{mode}
+              command = $cxx  $ld_flags_{mode} -s $ldflags -o $out $in $libs $libs_{mode}
+              description = LINK (stripped) $out
+              pool = link_pool
+            rule link_build.{mode}
+              command = $cxx  $ld_flags_{mode} $ldflags_build -o $out $in $libs $libs_{mode}
+              description = LINK (build) $out
+              pool = link_pool
+            rule ar.{mode}
+              command = rm -f $out; ar cr $out $in; ranlib $out
+              description = AR $out
+            rule thrift.{mode}
+                command = thrift -gen cpp:cob_style -out $builddir/{mode}/gen $in
+                description = THRIFT $in
+                restat = 1
+            rule antlr3.{mode}
+                # We replace many local `ExceptionBaseType* ex` variables with a single function-scope one.
+                # Because we add such a variable to every function, and because `ExceptionBaseType` is not a global
+                # name, we also add a global typedef to avoid compilation errors.
+                command = sed -e '/^#if 0/,/^#endif/d' $in > $builddir/{mode}/gen/$in $
+                     && {antlr3_exec} $builddir/{mode}/gen/$in $
+                     && sed -i -e '/^.*On :.*$$/d' $builddir/{mode}/gen/${{stem}}Lexer.hpp $
+                     && sed -i -e '/^.*On :.*$$/d' $builddir/{mode}/gen/${{stem}}Lexer.cpp $
+                     && sed -i -e '/^.*On :.*$$/d' $builddir/{mode}/gen/${{stem}}Parser.hpp $
+                     && sed -i -e 's/^\\( *\)\\(ImplTraits::CommonTokenType\\* [a-zA-Z0-9_]* = NULL;\\)$$/\\1const \\2/' $
+                        -e '/^.*On :.*$$/d' $
+                        -e '1i using ExceptionBaseType = int;' $
+                        -e 's/^{{/{{ ExceptionBaseType\* ex = nullptr;/; $
+                            s/ExceptionBaseType\* ex = new/ex = new/; $
+                            s/exceptions::syntax_exception e/exceptions::syntax_exception\& e/' $
+                        $builddir/{mode}/gen/${{stem}}Parser.cpp
+                description = ANTLR3 $in
+            rule checkhh.{mode}
+              command = $cxx -MD -MT $out -MF $out.d {seastar_cflags} $cxxflags $cxxflags_{mode} $obj_cxxflags --include $in -c -o $out $builddir/{mode}/gen/empty.cc
+              description = CHECKHH $in
+              depfile = $out.d
+            rule test.{mode}
+              command = ./test.py --mode={mode} --repeat={test_repeat} --timeout={test_timeout}
+              pool = console
+              description = TEST {mode}
+            rule rust_lib.{mode}
+              command = CARGO_BUILD_DEP_INFO_BASEDIR='.' cargo build --locked --manifest-path=rust/Cargo.toml --target-dir=$builddir/{mode} --profile=rust-{mode} $
+                        && touch $out
+              description = RUST_LIB $out
+        ''').format(mode=mode,
+                    antlr3_exec=antlr3_exec,
+                    fmt_lib=fmtlib,
+                    **modeval)
+
+
 for mode in build_modes:
     seastar_pc_cflags, seastar_pc_libs = query_seastar_flags(pc[mode], link_static_cxx=args.staticcxx)
     modes[mode]['seastar_cflags'] = seastar_pc_cflags
@@ -1892,67 +1960,7 @@ with open(buildfile, 'w') as f:
         f.write(f'build $builddir/{binary}: wasm2wat $builddir/{wasm}\n')
     for mode in build_modes:
         modeval = modes[mode]
-        fmt_lib = 'fmt'
-        f.write(textwrap.dedent('''\
-            cxx_ld_flags_{mode} = {cxx_ld_flags}
-            ld_flags_{mode} = $cxx_ld_flags_{mode} {lib_ldflags}
-            cxxflags_{mode} = $cxx_ld_flags_{mode} {lib_cflags} {cxxflags} -iquote. -iquote $builddir/{mode}/gen
-            libs_{mode} = -l{fmt_lib}
-            seastar_libs_{mode} = {seastar_libs}
-            seastar_testing_libs_{mode} = {seastar_testing_libs}
-            rule cxx.{mode}
-              command = $cxx -MD -MT $out -MF $out.d {seastar_cflags} $cxxflags_{mode} $cxxflags $obj_cxxflags -c -o $out $in
-              description = CXX $out
-              depfile = $out.d
-            rule link.{mode}
-              command = $cxx  $ld_flags_{mode} $ldflags -o $out $in $libs $libs_{mode}
-              description = LINK $out
-              pool = link_pool
-            rule link_stripped.{mode}
-              command = $cxx  $ld_flags_{mode} -s $ldflags -o $out $in $libs $libs_{mode}
-              description = LINK (stripped) $out
-              pool = link_pool
-            rule link_build.{mode}
-              command = $cxx  $ld_flags_{mode} $ldflags_build -o $out $in $libs $libs_{mode}
-              description = LINK (build) $out
-              pool = link_pool
-            rule ar.{mode}
-              command = rm -f $out; ar cr $out $in; ranlib $out
-              description = AR $out
-            rule thrift.{mode}
-                command = thrift -gen cpp:cob_style -out $builddir/{mode}/gen $in
-                description = THRIFT $in
-                restat = 1
-            rule antlr3.{mode}
-                # We replace many local `ExceptionBaseType* ex` variables with a single function-scope one.
-                # Because we add such a variable to every function, and because `ExceptionBaseType` is not a global
-                # name, we also add a global typedef to avoid compilation errors.
-                command = sed -e '/^#if 0/,/^#endif/d' $in > $builddir/{mode}/gen/$in $
-                     && {antlr3_exec} $builddir/{mode}/gen/$in $
-                     && sed -i -e '/^.*On :.*$$/d' $builddir/{mode}/gen/${{stem}}Lexer.hpp $
-                     && sed -i -e '/^.*On :.*$$/d' $builddir/{mode}/gen/${{stem}}Lexer.cpp $
-                     && sed -i -e '/^.*On :.*$$/d' $builddir/{mode}/gen/${{stem}}Parser.hpp $
-                     && sed -i -e 's/^\\( *\)\\(ImplTraits::CommonTokenType\\* [a-zA-Z0-9_]* = NULL;\\)$$/\\1const \\2/' $
-                        -e '/^.*On :.*$$/d' $
-                        -e '1i using ExceptionBaseType = int;' $
-                        -e 's/^{{/{{ ExceptionBaseType\* ex = nullptr;/; $
-                            s/ExceptionBaseType\* ex = new/ex = new/; $
-                            s/exceptions::syntax_exception e/exceptions::syntax_exception\& e/' $
-                        $builddir/{mode}/gen/${{stem}}Parser.cpp
-                description = ANTLR3 $in
-            rule checkhh.{mode}
-              command = $cxx -MD -MT $out -MF $out.d {seastar_cflags} $cxxflags $cxxflags_{mode} $obj_cxxflags --include $in -c -o $out $builddir/{mode}/gen/empty.cc
-              description = CHECKHH $in
-              depfile = $out.d
-            rule test.{mode}
-              command = ./test.py --mode={mode} --repeat={test_repeat} --timeout={test_timeout}
-              pool = console
-              description = TEST {mode}
-            rule rust_lib.{mode}
-              command = CARGO_BUILD_DEP_INFO_BASEDIR='.' cargo build --locked --manifest-path=rust/Cargo.toml --target-dir=$builddir/{mode} --profile=rust-{mode} $
-                        && touch $out
-              description = RUST_LIB $out
-            ''').format(mode=mode, antlr3_exec=antlr3_exec, fmt_lib=fmt_lib, test_repeat=test_repeat, test_timeout=test_timeout, **modeval))
+        f.write(create_rules_for_mode(mode, antlr3_exec, test_repeat, test_timeout, **modeval))
         f.write(
             'build {mode}-build: phony {artifacts} {wasms}\n'.format(
                 mode=mode,
