@@ -12,6 +12,7 @@
 #include <seastar/coroutine/exception.hh>
 #include <seastar/coroutine/parallel_for_each.hh>
 #include <seastar/coroutine/as_future.hh>
+#include <seastar/http/exception.hh>
 #include <seastar/util/closeable.hh>
 #include <seastar/util/defer.hh>
 
@@ -1310,7 +1311,12 @@ table::seal_active_memtable(compaction_group& cg, flush_permit&& flush_permit) n
                     // FIXME: enter maintenance mode when available.
                     // since replaying the commitlog with a corrupt mutation
                     // may end up in an infinite crash loop.
-                    tlogger.error("Memtable flush failed due to: {}. Aborting, at {}", ex, current_backtrace());
+                    if (auto e = try_catch<httpd::base_exception>(ex)) {
+                        tlogger.error("Memtable flush failed due to: {} ({}). Aborting, at {}",
+                                      e->what(), e->status(), current_backtrace());
+                    } else {
+                        tlogger.error("Memtable flush failed due to: {}. Aborting, at {}", ex, current_backtrace());
+                    }
                     std::abort();
                 }
             }
