@@ -11,6 +11,7 @@
 #include <random>
 #include <seastar/core/sleep.hh>
 #include <seastar/util/defer.hh>
+#include <fmt/ostream.h>
 #include "partition_range_compat.hh"
 #include "db/consistency_level.hh"
 #include "db/commitlog/commitlog.hh"
@@ -163,6 +164,34 @@ bool storage_proxy::is_me(gms::inet_address addr) const noexcept {
 bool storage_proxy::only_me(const inet_address_vector_replica_set& replicas) const noexcept {
     return replicas.size() == 1 && is_me(replicas[0]);
 }
+
+enum class storage_proxy_remote_read_verb {
+    read_data,
+    read_mutation_data,
+    read_digest
+};
+
+std::ostream& operator<<(std::ostream& os, const storage_proxy_remote_read_verb& verb) {
+    using read_verb = storage_proxy_remote_read_verb;
+    switch (verb) {
+        case read_verb::read_data:
+            os << "read_data";
+            break;
+        case read_verb::read_mutation_data:
+            os << "read_mutation_data";
+            break;
+        case read_verb::read_digest:
+            os << "read_digest";
+            break;
+    }
+    return os;
+}
+
+}
+
+template <> struct fmt::formatter<service::storage_proxy_remote_read_verb> : fmt::ostream_formatter {};
+
+namespace service {
 
 // This class handles all communication with other nodes in `storage_proxy`:
 // sending and receiving RPCs, checking the state of other nodes (e.g. by accessing gossiper state), fetching schema.
@@ -660,25 +689,8 @@ private:
         });
     }
 
-    enum class read_verb {
-        read_data,
-        read_mutation_data,
-        read_digest
-    };
-    friend std::ostream& operator<<(std::ostream& os, const read_verb& verb) {
-        switch (verb) {
-            case read_verb::read_data:
-                os << "read_data";
-                break;
-            case read_verb::read_mutation_data:
-                os << "read_mutation_data";
-                break;
-            case read_verb::read_digest:
-                os << "read_digest";
-                break;
-        }
-        return os;
-    }
+    using read_verb = storage_proxy_remote_read_verb;
+
     template<typename Result, read_verb verb>
     future<Result> handle_read(const rpc::client_info& cinfo, rpc::opt_time_point t,
         query::read_command cmd1, ::compat::wrapping_partition_range pr,
@@ -2192,11 +2204,18 @@ future<bool> paxos_response_handler::accept_proposal(lw_shared_ptr<paxos::propos
     return f;
 }
 
+} // namespace service 
+
 // debug output in mutate_internal needs this
-std::ostream& operator<<(std::ostream& os, const paxos_response_handler& h) {
-    os << "paxos_response_handler{" << h.id() << "}";
-    return os;
-}
+template <>
+struct fmt::formatter<service::paxos_response_handler> {
+    constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
+    auto format(const service::paxos_response_handler& h, fmt::format_context& ctx) const {
+        return fmt::format_to(ctx.out(), "paxos_response_handler{{{}}}", h.id());
+    }
+};
+
+namespace service {
 
 // This function implements learning stage of Paxos protocol
 future<> paxos_response_handler::learn_decision(lw_shared_ptr<paxos::proposal> decision, bool allow_hints) {
@@ -2819,9 +2838,19 @@ struct read_repair_mutation {
     locator::effective_replication_map_ptr ermp;
 };
 
-inline std::ostream& operator<<(std::ostream& os, const read_repair_mutation& m) {
-    return os << m.value;
 }
+
+template <> struct fmt::formatter<service::hint_wrapper> : fmt::ostream_formatter {};
+template <>
+struct fmt::formatter<service::read_repair_mutation> {
+    constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
+    auto format(const service::read_repair_mutation& m, fmt::format_context& ctx) const
+        -> decltype(ctx.out()) {
+        return fmt::format_to(ctx.out(), "{}", m.value);
+    }
+};
+
+namespace service {
 
 using namespace std::literals::chrono_literals;
 
@@ -3517,7 +3546,7 @@ storage_proxy::mutate_internal(Range mutations, db::consistency_level cl, bool c
     }
 
     slogger.trace("mutate cl={}", cl);
-    mlogger.trace("mutations={}", mutations);
+    mlogger.trace("mutations={}", fmt::join(mutations, ", "));
 
     // If counters is set it means that we are replicating counter shards. There
     // is no need for special handling anymore, since the leader has already
@@ -5346,8 +5375,8 @@ result<::shared_ptr<abstract_read_executor>> storage_proxy::get_read_executor(lw
             retry_type == speculative_retry::type::NONE ? nullptr : &extra_replica,
             _db.local().get_config().cache_hit_rate_read_balancing() ? &*cf : nullptr);
 
-    slogger.trace("creating read executor for token {} with all: {} targets: {} rp decision: {}", token, all_replicas, target_replicas, repair_decision);
-    tracing::trace(trace_state, "Creating read executor for token {} with all: {} targets: {} repair decision: {}", token, all_replicas, target_replicas, repair_decision);
+    slogger.trace("creating read executor for token {} with all: {} targets: {} rp decision: {}", token, fmt::join(all_replicas, ", "), fmt::join(target_replicas, ", "), repair_decision);
+    tracing::trace(trace_state, "Creating read executor for token {} with all: {} targets: {} repair decision: {}", token, fmt::join(all_replicas, ", "), fmt::join(target_replicas, ", "), repair_decision);
 
     // Throw UAE early if we don't have enough replicas.
     try {

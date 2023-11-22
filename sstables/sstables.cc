@@ -31,6 +31,8 @@
 #include <seastar/coroutine/maybe_yield.hh>
 #include <seastar/coroutine/parallel_for_each.hh>
 #include <seastar/coroutine/as_future.hh>
+#include <fmt/std.h>
+#include <fmt/ranges.h>
 
 #include "data_dictionary/storage_options.hh"
 #include "dht/sharder.hh"
@@ -1449,7 +1451,7 @@ entry_descriptor sstable::get_descriptor(component_type c) const {
 future<>
 sstable::load_owner_shards(const dht::sharder& sharder) {
     if (!_shards.empty()) {
-        sstlog.trace("{}: shards={}", get_filename(), _shards);
+        sstlog.trace("{}: shards={}", get_filename(), fmt::join(_shards, ", "));
         co_return;
     }
     co_await read_scylla_metadata();
@@ -1477,7 +1479,7 @@ sstable::load_owner_shards(const dht::sharder& sharder) {
     }
 
     _shards = compute_shards_for_this_sstable(sharder);
-    sstlog.trace("{}: shards={}", get_filename(), _shards);
+    sstlog.trace("{}: shards={}", get_filename(), fmt::join(_shards, ", "));
 }
 
 void prepare_summary(summary& s, uint64_t expected_partition_count, uint32_t min_index_interval) {
@@ -1550,7 +1552,7 @@ create_sharding_metadata(schema_ptr schema, const dht::sharder& sharder, const d
     if (ranges.empty()) {
         auto split_ranges_all_shards = dht::split_range_to_shards(prange, *schema, sharder);
         sstlog.warn("create_sharding_metadata: range={} has no intersection with shard={} first_key={} last_key={} ranges_single_shard={} ranges_all_shards={}",
-                prange, shard, first_key, last_key, ranges, split_ranges_all_shards);
+                prange, shard, first_key, last_key, fmt::join(ranges, ", "), fmt::join(split_ranges_all_shards, ", "));
     }
     sm.token_ranges.elements.reserve(ranges.size());
     for (auto&& range : std::move(ranges)) {
@@ -2979,10 +2981,6 @@ future<> sstable::destroy() {
     if (ex) {
         co_await coroutine::return_exception_ptr(std::move(ex));
     }
-}
-
-std::ostream& operator<<(std::ostream& out, const deletion_time& dt) {
-    return out << "{timestamp=" << dt.marked_for_delete_at << ", deletion_time=" << dt.marked_for_delete_at << "}";
 }
 
 std::optional<large_data_stats_entry> sstable::get_large_data_stat(large_data_type t) const noexcept {

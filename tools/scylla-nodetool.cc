@@ -17,6 +17,7 @@
 #include <seastar/http/request.hh>
 #include <seastar/util/short_streams.hh>
 #include <yaml-cpp/yaml.h>
+#include <fmt/ranges.h>
 
 #include "api/scrub_status.hh"
 #include "db_clock.hh"
@@ -30,6 +31,14 @@
 namespace bpo = boost::program_options;
 
 using namespace tools::utils;
+
+namespace std {
+// required by boost::lexical_cast<std::string>(vector<string>), which is in turn used
+// by boost::program_option for printing out the default value of an option
+static std::ostream& operator<<(std::ostream& os, const std::vector<sstring>& v) {
+    return os << fmt::format("{}", v);
+}
+}
 
 namespace {
 
@@ -52,7 +61,7 @@ class scylla_rest_client {
         auto url = req.get_url();
         req.query_parameters = params;
 
-        nlog.trace("Making {} request to {} with parameters {}", type, url, params);
+        nlog.trace("Making {} request to {} with parameters {}", type, req.get_url(), fmt::join(req.query_parameters, ", "));
 
         sstring res;
 
@@ -553,7 +562,7 @@ void help_operation(const tool_app_template::config& cfg, const bpo::variables_m
             opts_desc.add(op_opts_desc);
         }
 
-        fmt::print(std::cout, "{}\n", opts_desc);
+        std::cout << opts_desc << std::endl;
     } else {
         fmt::print(std::cout, "usage: nodetool [(-p <port> | --port <port>)] [(-h <host> | --host <host>)] <command> [<args>]\n\n");
         fmt::print(std::cout, "The most commonly used nodetool commands are:\n");
@@ -1381,7 +1390,7 @@ namespace tools {
 
 int scylla_nodetool_main(int argc, char** argv) {
     auto replacement_argv = massage_argv(argc, argv);
-    nlog.debug("replacement argv: {}", replacement_argv);
+    nlog.debug("replacement argv: {}", fmt::join(replacement_argv | boost::adaptors::transformed([] (char* p) -> const char* { return p; }), ", "));
 
     constexpr auto description_template =
 R"(scylla-{} - a command-line tool to administer local or remote ScyllaDB nodes

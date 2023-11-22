@@ -14,11 +14,6 @@
 #include "seastarx.hh"
 
 namespace unimplemented {
-
-static thread_local std::unordered_map<cause, bool> _warnings;
-
-static logging::logger ulogger("unimplemented");
-
 std::ostream& operator<<(std::ostream& out, cause c) {
     switch (c) {
         case cause::INDEXES: return out << "INDEXES";
@@ -53,6 +48,15 @@ std::ostream& operator<<(std::ostream& out, cause c) {
     abort();
 }
 
+}
+
+static thread_local std::unordered_map<unimplemented::cause, bool> _warnings;
+
+static logging::logger ulogger("unimplemented");
+
+template <> struct fmt::formatter<unimplemented::cause> : fmt::ostream_formatter {};
+
+namespace unimplemented {
 void warn(cause c) {
     if (!_warnings.contains(c)) {
         _warnings.insert({c, true});

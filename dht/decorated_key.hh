@@ -99,3 +99,6 @@ struct hash<dht::decorated_key> {
 };
 
 } // namespace std
+
+template <> struct fmt::formatter<dht::ring_position> : fmt::ostream_formatter {};
+template <> struct fmt::formatter<dht::decorated_key> : fmt::ostream_formatter {};

@@ -400,3 +400,5 @@ public:
 namespace std {
 std::ostream& operator<<(std::ostream& os, const rjson::value& v);
 }
+
+template <> struct fmt::formatter<rjson::value> : fmt::ostream_formatter {};

@@ -522,3 +522,5 @@ public:
 };
 
 }
+
+template <> struct fmt::formatter<cache_entry> : fmt::ostream_formatter {};

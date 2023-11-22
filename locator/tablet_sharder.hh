@@ -11,6 +11,7 @@
 #include "locator/tablets.hh"
 #include "dht/sharder.hh"
 #include "locator/token_metadata.hh"
+#include <fmt/std.h>
 
 namespace locator {
 

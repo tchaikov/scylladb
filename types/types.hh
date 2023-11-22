@@ -13,6 +13,7 @@
 #include <iosfwd>
 #include <sstream>
 #include <initializer_list>
+#include <fmt/ostream.h>
 
 #include <seastar/core/sstring.hh>
 #include <seastar/core/shared_ptr.hh>
@@ -1035,3 +1036,4 @@ struct fmt::formatter<data_value_or_unset> : fmt::formatter<std::string_view> {
 };
 
 using data_value_list = std::initializer_list<data_value_or_unset>;
+template <> struct fmt::formatter<data_value> : fmt::ostream_formatter {};

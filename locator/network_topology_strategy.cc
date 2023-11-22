@@ -10,6 +10,7 @@
 
 #include <functional>
 
+#include <fmt/ranges.h>
 #include <seastar/core/coroutine.hh>
 #include <seastar/coroutine/maybe_yield.hh>
 

@@ -12,6 +12,7 @@
 #include <compare>
 #include <iostream>
 #include <type_traits>
+#include <fmt/ostream.h>
 
 #include <fmt/core.h>
 

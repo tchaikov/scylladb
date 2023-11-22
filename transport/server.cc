@@ -13,6 +13,7 @@
 #include <boost/bimap.hpp>
 #include <boost/assign.hpp>
 #include <boost/range/adaptor/sliced.hpp>
+#include <fmt/ostream.h>
 
 #include "cql3/statements/batch_statement.hh"
 #include "cql3/statements/modification_statement.hh"
@@ -64,6 +65,8 @@
 #include "utils/bit_cast.hh"
 #include "db/config.hh"
 #include "utils/reusable_buffer.hh"
+
+template <> struct fmt::formatter<seastar::tls::subject_alt_name> : fmt::ostream_formatter {};
 
 template<typename T = void>
 using coordinator_result = exceptions::coordinator_result<T>;

@@ -15,6 +15,7 @@
 #include "gms/versioned_value.hh"
 #include <optional>
 #include <chrono>
+#include <fmt/ostream.h>
 
 namespace gms {
 

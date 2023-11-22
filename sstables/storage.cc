@@ -10,6 +10,7 @@
 
 #include <cerrno>
 #include <boost/algorithm/string.hpp>
+#include <fmt/std.h>
 
 #include <exception>
 #include <stdexcept>

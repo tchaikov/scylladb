@@ -72,41 +72,6 @@ std::ostream& operator<<(std::ostream& os, const std::tuple<T...>& p) {
 }
 
 // Vector-like ranges
-template <std::ranges::range Range>
-requires (
-       std::same_as<Range, std::vector<std::ranges::range_value_t<Range>>>
-    || std::same_as<Range, std::list<std::ranges::range_value_t<Range>>>
-    || std::same_as<Range, std::initializer_list<std::ranges::range_value_t<Range>>>
-    || std::same_as<Range, std::deque<std::ranges::range_value_t<Range>>>
-)
-std::ostream& operator<<(std::ostream& os, const Range& items) {
-    return utils::format_range(os, items);
-}
-
-template <typename T, typename... Args>
-std::ostream& operator<<(std::ostream& os, const std::set<T, Args...>& items) {
-    return utils::format_range(os, items);
-}
-
-template <typename T, typename... Args>
-std::ostream& operator<<(std::ostream& os, const std::unordered_set<T, Args...>& items) {
-    return utils::format_range(os, items);
-}
-
-template <typename K, typename V, typename... Args>
-std::ostream& operator<<(std::ostream& os, const std::map<K, V, Args...>& items) {
-    return utils::format_range(os, items);
-}
-
-template <typename... Args>
-std::ostream& operator<<(std::ostream& os, const boost::transformed_range<Args...>& items) {
-    return utils::format_range(os, items);
-}
-
-template <typename T, std::size_t N>
-std::ostream& operator<<(std::ostream& os, const std::array<T, N>& items) {
-    return utils::format_range(os, items, "[]");
-}
 
 template <typename T>
 std::ostream& operator<<(std::ostream& os, const std::optional<T>& opt) {
@@ -124,14 +89,6 @@ std::ostream& operator<<(std::ostream& os, const std::partial_ordering& order);
 
 } // namespace std
 
-template<typename T>
-struct fmt::formatter<std::optional<T>> : fmt::formatter<std::string_view> {
-    template <typename FormatContext>
-    auto format(const std::optional<T>& opt, FormatContext& ctx) const {
-        if (opt) {
-            return fmt::format_to(ctx.out(), "{}", *opt);
-        } else {
-            return fmt::format_to(ctx.out(), "{{}}");
-        }
-     }
-};
+template <> struct fmt::formatter<std::strong_ordering> : fmt::ostream_formatter {};
+template <> struct fmt::formatter<std::weak_ordering> : fmt::ostream_formatter {};
+template <> struct fmt::formatter<std::partial_ordering> : fmt::ostream_formatter {};

@@ -338,7 +338,7 @@ static std::vector<sstring> experimental_feature_names() {
 static std::string_view experimental_features_help_string() {
     static sstring s = format("Unlock experimental features provided as the "
         "option arguments (possible values: {}). Can be repeated.",
-        experimental_feature_names());
+        fmt::join(experimental_feature_names(), ", "));
     return s;
 }
 
@@ -1192,11 +1192,6 @@ struct fmt::formatter<db::seed_provider_type> {
 };
 
 namespace db {
-
-std::ostream& operator<<(std::ostream& os, const db::seed_provider_type& s) {
-    os << "seed_provider_type{class=" << s.class_name << ", params=" << s.parameters << "}";
-    return os;
-}
 
 std::istream& operator>>(std::istream& is, db::seed_provider_type& s) {
     // FIXME -- this operator is used, in particular, by boost lexical_cast<>

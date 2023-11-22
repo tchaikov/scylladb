@@ -18,6 +18,8 @@
 #include "sstables/mx/bsearch_clustered_cursor.hh"
 #include "sstables/sstables_manager.hh"
 
+#include <fmt/ostream.h>
+
 namespace sstables {
 
 extern seastar::logger sstlog;

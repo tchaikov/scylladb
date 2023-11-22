@@ -36,7 +36,6 @@ public:
     bool has_type(const bytes& name) const {
         return _user_types.contains(name);
     }
-    friend std::ostream& operator<<(std::ostream& os, const user_types_metadata& m);
 };
 
 class user_types_storage {

@@ -19,6 +19,10 @@
 #include <unordered_set>
 #include <exception>
 #include <filesystem>
+#include <fmt/ostream.h>
+#include <fmt/std.h>
+#include <fmt/ranges.h>
+#include <fmt/chrono.h>
 
 #include <seastar/core/align.hh>
 #include <seastar/core/seastar.hh>
@@ -751,7 +755,10 @@ class db::commitlog::segment : public enable_shared_from_this<segment>, public c
 
     std::unordered_set<table_schema_version> _known_schema_versions;
 
+    friend sstring format_as(const segment&);
+#if FMT_VERSION < 10'00'00
     friend std::ostream& operator<<(std::ostream&, const segment&);
+#endif
     friend class segment_manager;
 
     size_t sector_overhead(size_t size) const {
@@ -790,7 +797,7 @@ public:
     struct cf_mark {
         const segment& s;
     };
-    friend std::ostream& operator<<(std::ostream&, const cf_mark&);
+    friend struct fmt::formatter<cf_mark>;
 
     // The commit log entry overhead in bytes (int: length + int: head checksum)
     static constexpr size_t entry_overhead_size = 2 * sizeof(uint32_t);
@@ -1999,7 +2006,7 @@ future<db::commitlog::segment_manager::sseg_ptr> db::commitlog::segment_manager:
 void db::commitlog::segment_manager::discard_completed_segments(const cf_id_type& id, const rp_set& used) noexcept {
     auto& usage = used.usage();
 
-    clogger.debug("Discarding {}: {}", id, usage);
+    clogger.debug("Discarding {}: {}", id, fmt::join(usage, ", "));
 
     for (auto&s : _segments) {
         auto i = usage.find(s->_desc.id);
@@ -2032,19 +2039,29 @@ future<> db::commitlog::segment_manager::force_new_active_segment() noexcept {
 
 namespace db {
 
+sstring format_as(const db::commitlog::segment& s) {
+    return s._desc.filename();
+}
+
+#if FMT_VERSION < 10'00'00
 std::ostream& operator<<(std::ostream& out, const db::commitlog::segment& s) {
-    return out << s._desc.filename();
+    return out << format_as(s);
 }
+#endif
 
-std::ostream& operator<<(std::ostream& out, const db::commitlog::segment::cf_mark& m) {
-    fmt::print(out, "{}", m.s._cf_dirty | boost::adaptors::map_keys);
-    return out;
-}
+} // namespace db
 
-std::ostream& operator<<(std::ostream& out, const db::replay_position& p) {
+template <>
+struct fmt::formatter<db::commitlog::segment::cf_mark> {
+    constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
+    template <typename FormatContext>
+    auto format(const db::commitlog::segment::cf_mark& m, FormatContext& ctx) const {
+        return fmt::format_to(ctx.out(), "{}", fmt::join(m.s._cf_dirty | boost::adaptors::map_keys, ", "));
+    }
+};
+
+std::ostream& db::operator<<(std::ostream& out, const db::replay_position& p) {
     return out << "{" << p.shard_id() << ", " << p.base_id() << ", " << p.pos << "}";
-}
-
 }
 
 void db::commitlog::segment_manager::discard_unused_segments() noexcept {
@@ -2222,29 +2239,49 @@ void db::commitlog::segment_manager::abort_recycled_list(std::exception_ptr ep) 
     _recycled_segments = queue<named_file>(std::numeric_limits<size_t>::max());
 }
 
-namespace db {
-
-std::ostream& operator<<(std::ostream& os, const commitlog::segment_manager::named_file& f) {
-    return os << f.name() << " (" << f.known_size() << ")";
-}
-
-std::ostream& operator<<(std::ostream& os, commitlog::segment_manager::dispose_mode mode) {
-    using dispose_mode = db::commitlog::segment_manager::dispose_mode;
-
-    switch (mode) {
-        case dispose_mode::Delete: os << "Delete"; break;
-        case dispose_mode::ForceDelete: os << "Force Delete"; break;
-        case dispose_mode::Keep: os << "Keep"; break;
-        default: break;
+template <>
+struct fmt::formatter<db::commitlog::segment_manager::named_file> {
+    constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
+    auto format(const db::commitlog::segment_manager::named_file& f, fmt::format_context& ctx) const {
+        return fmt::format_to(ctx.out(), "{} ({})", f.name(), f.known_size());
     }
-    return os;
-}
+};
 
-std::ostream& operator<<(std::ostream& os, const std::pair<commitlog::segment_manager::named_file, db::commitlog::segment_manager::dispose_mode>& p) {
-    return os << p.first << " (" << p.second << ")";
-}
+template <>
+struct fmt::formatter<db::commitlog::segment_manager::dispose_mode> {
+    constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
+    auto format(db::commitlog::segment_manager::dispose_mode mode, fmt::format_context& ctx) const {
+        using dispose_mode = db::commitlog::segment_manager::dispose_mode;
+        string_view name;
+        switch (mode) {
+        case dispose_mode::Delete: name = "Delete"; break;
+        case dispose_mode::ForceDelete: name = "Force Delete"; break;
+        case dispose_mode::Keep: name = "Keep"; break;
+        default: break;
+        }
+        return fmt::format_to(ctx.out(), "{}", name);
+    }
+};
 
-}
+template <typename T>
+struct fmt::formatter<db::commitlog::segment_manager::byte_flow<T>> {
+    constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
+    auto format(db::commitlog::segment_manager::byte_flow<T> f, fmt::format_context& ctx) const {
+        return fmt::format_to(ctx.out(), "[written={}, released={}, flush_req={}]",
+                              f.bytes_written, f.bytes_released, f.bytes_flush_requested);
+    }
+};
+
+using file_to_dispose_t = std::pair<db::commitlog::segment_manager::named_file,
+                                    db::commitlog::segment_manager::dispose_mode>;
+template <>
+struct fmt::formatter<file_to_dispose_t> {
+    constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
+    auto format(const file_to_dispose_t& p, fmt::format_context& ctx) const {
+        auto& [file, mode] = p;
+        return fmt::format_to(ctx.out(), "{} ({})", file, mode);
+    }
+};
 
 future<> db::commitlog::segment_manager::do_pending_deletes() {
     auto ftd = std::exchange(_files_to_dispose, {});
@@ -2256,7 +2293,7 @@ future<> db::commitlog::segment_manager::do_pending_deletes() {
     std::exception_ptr recycle_error;
     auto exts = cfg.extensions;
 
-    clogger.debug("Discarding segments {}", ftd);
+    clogger.debug("Discarding segments {}", fmt::join(ftd, ", "));
 
     for (auto& [f, mode] : ftd) {
         // `f.remove_file()` resets known_size to 0, so remember the size here,

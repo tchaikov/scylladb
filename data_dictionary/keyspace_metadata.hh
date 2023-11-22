@@ -96,7 +96,14 @@ public:
     virtual sstring element_name() const override { return name(); }
     virtual sstring element_type() const override { return "keyspace"; }
     virtual std::ostream& describe(std::ostream& os) const override;
-    friend std::ostream& operator<<(std::ostream& os, const keyspace_metadata& m);
+    friend struct fmt::formatter<keyspace_metadata>;
 };
 
 }
+
+template <>
+struct fmt::formatter<data_dictionary::keyspace_metadata> {
+    constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
+    auto format(const data_dictionary::keyspace_metadata&, fmt::format_context& ctx) const
+        -> decltype(ctx.out());
+};

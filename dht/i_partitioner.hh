@@ -20,6 +20,7 @@
 #include <utility>
 #include <vector>
 #include <compare>
+#include <fmt/ostream.h>
 #include "range.hh"
 #include <byteswap.h>
 #include "dht/token.hh"
@@ -126,3 +127,8 @@ dht::token first_token(const dht::partition_range&);
 std::optional<shard_id> is_single_shard(const dht::sharder&, const schema&, const dht::partition_range&);
 
 } // dht
+
+template <> struct fmt::formatter<dht::ring_position_view> : fmt::ostream_formatter {};
+template <> struct fmt::formatter<dht::ring_position_ext> : fmt::ostream_formatter {};
+template <> struct fmt::formatter<dht::i_partitioner> : fmt::ostream_formatter {};
+template <> struct fmt::formatter<dht::partition_ranges_view> : fmt::ostream_formatter {};

@@ -7,6 +7,7 @@
  */
 
 #include "row_cache.hh"
+#include "seastarx.hh"
 #include <seastar/core/memory.hh>
 #include <seastar/core/do_with.hh>
 #include <seastar/core/future-util.hh>
@@ -26,6 +27,7 @@
 #include "partition_snapshot_reader.hh"
 #include "clustering_key_filter.hh"
 #include "utils/updateable_value.hh"
+#include <fmt/ranges.h>
 
 namespace cache {
 
