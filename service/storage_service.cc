@@ -2735,7 +2735,7 @@ db::system_keyspace::peer_info storage_service::get_peer_info_for_update(inet_ad
         try {
             field = T(value.value());
         } catch (...) {
-            on_internal_error(slogger, format("failed to parse {} {} for {}: {}", name, value.value(),
+            on_internal_error(slogger, fmt::format("failed to parse {} {} for {}: {}", name, value.value(),
                 endpoint, std::current_exception()));
         }
     };
