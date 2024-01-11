@@ -9,9 +9,7 @@
 #include <seastar/core/app-template.hh>
 #include <seastar/core/thread.hh>
 #include <map>
-#include <iostream>
 #include <fmt/core.h>
-#include <fmt/ostream.h>
 
 constexpr int TEST_NODE_SIZE = 8;
 constexpr int TEST_LINEAR_THRESH = 21;

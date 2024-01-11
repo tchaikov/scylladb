@@ -8,9 +8,7 @@
 
 #include <seastar/core/app-template.hh>
 #include <seastar/core/thread.hh>
-#include <map>
 #include <string>
-#include <iostream>
 #include <fmt/core.h>
 
 constexpr int TEST_NODE_SIZE = 7;
