@@ -2811,7 +2811,7 @@ static bool hierarchy_actions(
     } else if (h.has_members()) {
         if (type[0] != 'M' || !v.IsObject()) {
             // A .something on a non-map doesn't work.
-            throw api_error::validation(format("UpdateExpression: document paths not valid for this item:{}", h));
+            throw api_error::validation(fmt::format("UpdateExpression: document paths not valid for this item:{}", h));
         }
         for (const auto& member : h.get_members()) {
             std::string attr = member.first;

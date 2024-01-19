@@ -2632,7 +2632,7 @@ public:
             }
         }
         if (_all_live_peer_shards.size() != _all_live_peer_nodes.size()) {
-            on_internal_error(rlogger, format("The size of shards and nodes do not match table={} range={} shards={} nodes={}",
+            on_internal_error(rlogger, fmt::format("The size of shards and nodes do not match table={} range={} shards={} nodes={}",
                 _cf_name, _range, _all_live_peer_shards, _all_live_peer_nodes));
         }
 
