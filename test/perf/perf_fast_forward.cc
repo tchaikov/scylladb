@@ -1917,7 +1917,7 @@ int scylla_fast_forward_main(int argc, char** argv) {
         ("list-tests", "Show available test groups")
         ("list-datasets", "Show available datasets")
         ("populate", "populate the table")
-        ("flush-threshold", bpo::value<size_t>()->default_value(300 * MB), "Memtable size threshold for sstable flush. Used during population.")
+        ("flush-threshold", bpo::value<size_t>()->default_value(300_MiB), "Memtable size threshold for sstable flush. Used during population.")
         ("verbose", "Enables more logging")
         ("trace", "Enables trace-level logging")
         ("enable-cache", "Enables cache")

@@ -27,7 +27,7 @@ static size_t compiled_size(const wasmtime::Module& module) noexcept {
 static size_t wasm_stack_size() noexcept {
     // Wasm stack contains 2 stacks - one for wasm functions and one for
     // host functions, both of which are 128KB - and a guard page.
-    return 256 * KB + getpagesize();
+    return 256_KiB + getpagesize();
 }
 
 module_handle::module_handle(wasmtime::Module& module, instance_cache& cache, wasmtime::Engine& engine)
@@ -48,7 +48,7 @@ module_handle::~module_handle() noexcept {
     _cache.remove_module_ref(_module);
 }
 
-static constexpr size_t WASM_PAGE_SIZE = 64 * KB;
+static constexpr size_t WASM_PAGE_SIZE = 64_KiB;
 
 instance_cache::stats& instance_cache::shard_stats() {
     return _stats;

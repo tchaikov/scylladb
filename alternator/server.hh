@@ -25,7 +25,7 @@ namespace alternator {
 using chunked_content = rjson::chunked_content;
 
 class server {
-    static constexpr size_t content_length_limit = 16*MB;
+    static constexpr size_t content_length_limit = 16_MiB;
     using alternator_callback = std::function<future<executor::request_return_type>(executor&, executor::client_state&,
             tracing::trace_state_ptr, service_permit, rjson::value, std::unique_ptr<http::request>)>;
     using alternator_callbacks_map = std::unordered_map<std::string_view, alternator_callback>;
@@ -48,7 +48,7 @@ class server {
     utils::updateable_value<uint32_t> _max_concurrent_requests;
 
     class json_parser {
-        static constexpr size_t yieldable_parsing_threshold = 16*KB;
+        static constexpr size_t yieldable_parsing_threshold = 16_KiB;
         chunked_content _raw_document;
         rjson::value _parsed_document;
         std::exception_ptr _current_exception;
