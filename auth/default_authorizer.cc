@@ -323,7 +323,7 @@ future<> default_authorizer::revoke_all(const resource& resource, ::service::gro
 
     auto name = resource.name();
     auto gen = [this, name] (api::timestamp_type t) -> ::service::mutations_generator {
-        const sstring query = format("SELECT {} FROM {}.{} WHERE {} = ? ALLOW FILTERING",
+        const sstring query = seastar::format("SELECT {} FROM {}.{} WHERE {} = ? ALLOW FILTERING",
                 ROLE_NAME,
                 get_auth_ks_name(_qp),
                 PERMISSIONS_CF,
@@ -334,7 +334,7 @@ future<> default_authorizer::revoke_all(const resource& resource, ::service::gro
                 {name},
                 cql3::query_processor::cache_internal::no);
         for (const auto& r : *res) {
-            const sstring query = format("DELETE FROM {}.{} WHERE {} = ? AND {} = ?",
+            const sstring query = seastar::format("DELETE FROM {}.{} WHERE {} = ? AND {} = ?",
                     get_auth_ks_name(_qp),
                     PERMISSIONS_CF,
                     ROLE_NAME,
@@ -346,7 +346,7 @@ future<> default_authorizer::revoke_all(const resource& resource, ::service::gro
                     {r.get_as<sstring>(ROLE_NAME), name});
             if (muts.size() != 1) {
                 on_internal_error(alogger,
-                    format("expecting single delete mutation, got {}", muts.size()));
+                    seastar::format("expecting single delete mutation, got {}", muts.size()));
             }
             co_yield std::move(muts[0]);
         }

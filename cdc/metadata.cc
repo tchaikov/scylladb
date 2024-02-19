@@ -100,7 +100,7 @@ cdc::stream_id cdc::metadata::get_stream(api::timestamp_type ts, dht::token tok)
         // the generation under `it` because that generation was operating at `now - generation_leeway`.
         bool is_previous_gen = it != _gens.end() && std::next(it) != _gens.end() && std::next(it)->first <= now;
         if (it == _gens.end() || ts < it->first || is_previous_gen) {
-            throw exceptions::invalid_request_exception(format(
+            throw exceptions::invalid_request_exception(seastar::format(
                     "cdc: attempted to get a stream \"from the past\" ({}; current server time: {})."
                     " With CDC you cannot send writes with timestamps too far into the past, because that would break"
                     " consistency properties.\n"
@@ -112,7 +112,7 @@ cdc::stream_id cdc::metadata::get_stream(api::timestamp_type ts, dht::token tok)
 
     it = _gens.begin();
     if (it == _gens.end() || ts < it->first) {
-        throw std::runtime_error(format(
+        throw std::runtime_error(fmt::format(
                 "cdc::metadata::get_stream: could not find any CDC stream for timestamp {}."
                 " Are we in the middle of a cluster upgrade?", format_timestamp(ts)));
     }

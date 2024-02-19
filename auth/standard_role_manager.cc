@@ -346,13 +346,8 @@ future<> standard_role_manager::drop(std::string_view role_name, ::service::grou
         throw nonexistant_role(role_name);
     }
     // First, revoke this role from all roles that are members of it.
-<<<<<<< HEAD
     const auto revoke_from_members = [this, role_name, &mc] () -> future<> {
-        const sstring query = format("SELECT member FROM {}.{} WHERE role = ?",
-=======
-    const auto revoke_from_members = [this, role_name] () -> future<> {
         const sstring query = seastar::format("SELECT member FROM {}.{} WHERE role = ?",
->>>>>>> c63edc1561 (seastar::format())
                 get_auth_ks_name(_qp),
                 meta::role_members_table::name);
         const auto members = co_await _qp.execute_internal(
@@ -384,7 +379,7 @@ future<> standard_role_manager::drop(std::string_view role_name, ::service::grou
     };
     // Delete all attributes for that role
     const auto remove_attributes_of = [this, role_name, &mc] () -> future<> {
-        const sstring query = format("DELETE FROM {}.{} WHERE role = ?",
+        const sstring query = seastar::format("DELETE FROM {}.{} WHERE role = ?",
                 get_auth_ks_name(_qp),
                 meta::role_attributes_table::name);
         if (legacy_mode(_qp)) {
@@ -396,7 +391,7 @@ future<> standard_role_manager::drop(std::string_view role_name, ::service::grou
     };
     // Finally, delete the role itself.
     const auto delete_role = [this, role_name, &mc] () -> future<> {
-        const sstring query = format("DELETE FROM {}.{} WHERE {} = ?",
+        const sstring query = seastar::format("DELETE FROM {}.{} WHERE {} = ?",
                 get_auth_ks_name(_qp),
                 meta::roles_table::name,
                 meta::roles_table::role_col_name);
@@ -440,7 +435,7 @@ standard_role_manager::legacy_modify_membership(
     const auto modify_role_members = [this, role_name, grantee_name, ch] () -> future<> {
         switch (ch) {
             case membership_change::add: {
-                const sstring insert_query = format("INSERT INTO {}.{} (role, member) VALUES (?, ?)",
+                const sstring insert_query = seastar::format("INSERT INTO {}.{} (role, member) VALUES (?, ?)",
                         get_auth_ks_name(_qp),
                         meta::role_members_table::name);
                 co_return co_await _qp.execute_internal(
@@ -452,7 +447,7 @@ standard_role_manager::legacy_modify_membership(
             }
 
             case membership_change::remove: {
-                const sstring delete_query = format("DELETE FROM {}.{} WHERE role = ? AND member = ?",
+                const sstring delete_query = seastar::format("DELETE FROM {}.{} WHERE role = ? AND member = ?",
                         get_auth_ks_name(_qp),
                         meta::role_members_table::name);
                 co_return co_await _qp.execute_internal(

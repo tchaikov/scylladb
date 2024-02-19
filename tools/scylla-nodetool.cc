@@ -1326,7 +1326,7 @@ void repair_operation(scylla_rest_client& client, const bpo::variables_map& vm) 
     if (vm.contains("start-token") || vm.contains("end-token")) {
         const auto st = vm.contains("start-token") ? fmt::to_string(vm["start-token"].as<uint64_t>()) : "";
         const auto et = vm.contains("end-token") ? fmt::to_string(vm["end-token"].as<uint64_t>()) : "";
-        repair_params["ranges"] = format("{}:{}", st, et);
+        repair_params["ranges"] = seastar::format("{}:{}", st, et);
     }
 
     if (vm.contains("ignore-unreplicated-keyspaces")) {

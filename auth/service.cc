@@ -632,7 +632,7 @@ future<> migrate_to_auth_v2(db::system_keyspace& sys_ks, ::service::raft_group0_
             ::service::query_state qs(cs, empty_service_permit());
 
             auto rows = co_await qp.execute_internal(
-                    format("SELECT * FROM {}.{}", meta::legacy::AUTH_KS, cf_name),
+                    seastar::format("SELECT * FROM {}.{}", meta::legacy::AUTH_KS, cf_name),
                     db::consistency_level::ALL,
                     qs,
                     {},
