@@ -2161,7 +2161,7 @@ static cql3::raw_value do_evaluate(const function_call& fun_call, const evaluati
     try {
         scalar_fun->return_type()->validate(*result);
     } catch (marshal_exception&) {
-        throw runtime_exception(format("Return of function {} ({}) is not a valid value for its declared return type {}",
+        throw runtime_exception(fmt::format("Return of function {} ({}) is not a valid value for its declared return type {}",
                                        *scalar_fun, to_hex(result),
                                        scalar_fun->return_type()->as_cql3_type()
                                        ));
