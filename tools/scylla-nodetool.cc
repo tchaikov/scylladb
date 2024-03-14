@@ -2045,7 +2045,7 @@ void tablehistograms_operation(scylla_rest_client& client, const bpo::variables_
     const auto [keyspace, table] = parse_keyspace_and_table(client, vm, "table");
 
     auto get_estimated_histogram = [&client, &keyspace, &table] (std::string_view histogram) {
-        const auto res = client.get(format("/column_family/metrics/{}/{}:{}", histogram, keyspace, table));
+        const auto res = client.get(seastar::format("/column_family/metrics/{}/{}:{}", histogram, keyspace, table));
         const auto res_object = res.GetObject();
         if (!res.HasMember("bucket_offsets")) {
             return utils::estimated_histogram(0);
@@ -2054,7 +2054,7 @@ void tablehistograms_operation(scylla_rest_client& client, const bpo::variables_
         const auto& bucket_offsets_array = res["bucket_offsets"].GetArray();
 
         if (bucket_offsets_array.Size() + 1 != buckets_array.Size()) {
-            throw std::runtime_error(format("invalid estimated histogram {}, buckets must have one more element than bucket_offsets", histogram));
+            throw std::runtime_error(fmt::format("invalid estimated histogram {}, buckets must have one more element than bucket_offsets", histogram));
         }
 
         std::vector<int64_t> bucket_offsets, buckets;
