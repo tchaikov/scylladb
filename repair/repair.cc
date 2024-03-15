@@ -1191,7 +1191,7 @@ future<int> repair_service::do_repair_start(sstring keyspace, std::unordered_map
                     auto node = gms::inet_address(n);
                     hosts.insert(node);
                 } catch(...) {
-                    throw std::invalid_argument(format("Failed to parse node={} in hosts={} specified by user: {}",
+                    throw std::invalid_argument(fmt::format("Failed to parse node={} in hosts={} specified by user: {}",
                         n, options.hosts, std::current_exception()));
                 }
             }
@@ -1201,7 +1201,7 @@ future<int> repair_service::do_repair_start(sstring keyspace, std::unordered_map
                     auto node = gms::inet_address(n);
                     ignore_nodes.insert(node);
                 } catch(...) {
-                    throw std::invalid_argument(format("Failed to parse node={} in ignore_nodes={} specified by user: {}",
+                    throw std::invalid_argument(fmt::format("Failed to parse node={} in ignore_nodes={} specified by user: {}",
                         n, options.ignore_nodes, std::current_exception()));
                 }
             }
