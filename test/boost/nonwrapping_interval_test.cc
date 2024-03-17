@@ -17,6 +17,7 @@
 #include "schema/schema_builder.hh"
 
 #include "locator/token_metadata.hh"
+#include "test/lib/test_utils.hh"
 
 #include "test/lib/test_utils.hh"
 
