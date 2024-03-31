@@ -1,0 +1,70 @@
+name: setup-build-env
+description: Setup Building Environment
+inputs:
+  install_clang_tool:
+    description: 'install clang-tool'
+    required: false
+    default: false
+    type: boolean
+  install_clang_tidy:
+    description: 'install clang-tidy'
+    required: false
+    default: false
+    type: boolean
+# use the development branch
+env:
+  CLANG_VERSION: 19
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Add scylla-ppa repo
+      env:
+        scylla_ppa_key: 6B2BFD3660EF3F5B
+      shell: bash
+      # "add-apt-repository ppa:scylladb/ppa" does not work, as jammy is not built in this ppa repo,
+      # so, let's use xenial instead. it is the latest version provided by ppa:scylladb/pp
+      run: |
+        # see https://apt.llvm.org
+        gpg_home=$(mktemp -d)
+        gpg --homedir $gpg_home --no-default-keyring --keyring ppa.key --keyserver keyserver.ubuntu.com --recv-key $scylla_ppa_key
+        sudo gpg --homedir $gpg_home --keyring ppa.key --export --output /etc/apt/trusted.gpg.d/ubuntu-scylladb-ppa.gpg $scylla_ppa_key
+        echo "deb http://ppa.launchpadcontent.net/scylladb/ppa/ubuntu xenial main" | sudo tee -a /etc/apt/sources.list.d/scylla-ppa.list
+
+    - name: Add clang apt repo
+      if: ${{ inputs.install_clang_tool || inputs.install_clang_tidy }}
+      shell: bash
+      run: |
+        sudo apt-get install -y curl
+        curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc >/dev/null
+        # use the development branch
+        echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy main" | sudo tee -a /etc/apt/sources.list.d/llvm.list
+        sudo apt-get update
+
+    - name: Install clang-tools
+      if: ${{ inputs.install_clang_tools }}
+      shell: bash
+      run: |
+        sudo apt-get install -y clang-tools-$CLANG_VERSION
+
+    - name: Install clang-tidy
+      if: ${{ inputs.install_clang_tidy }}
+      shell: bash
+      run: |
+        sudo apt-get install -y clang-tidy-$CLANG_VERSION
+
+    - name: Install more build dependencies
+      shell: bash
+      run: |
+        # - do not install java dependencies, which is not only not necessary,
+        #   and they include "python", which is not EOL and not available.
+        # - replace "scylla-libthrift010" with "libthrift-dev". because
+        #   scylla-libthrift010 : Depends: libssl1.0.0 (>= 1.0.1) but it is not installable
+        # - we don't perform tests, so minio is not necessary.
+        sed -i.orig \
+          -e '/tools\/.*\/install-dependencies.sh/d' \
+          -e 's/scylla-libthrift010-dev/libthrift-dev/' \
+          -e 's/(minio_download_jobs)/(true)/' \
+          ./install-dependencies.sh
+        sudo ./install-dependencies.sh
+        mv ./install-dependencies.sh{.orig,}

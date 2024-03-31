@@ -1,0 +1,66 @@
+name: clang-tidy
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  schedule:
+    # only at 5AM Saturday
+    - cron: '0 5 * * SAT'
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'CMake build type'
+        required: false
+        default: 'RelWithDebInfo'
+        type: choice
+        options:
+          - Debug
+          - RelWithDebInfo
+          - Dev
+          - Sanitize
+          - Coverage
+      clang_tidy_checks:
+        description: 'clang-tidy --checks options'
+        required: false
+        default: 'bugprone-use-after-move'
+        type: string
+env:
+  CLANG_VERSION: 19
+  BUILD_DIR: build
+
+permissions: {}
+
+jobs:
+  clang-tidy:
+    name: "Run clang-tidy"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: ./.github/actions/setup-build
+        with:
+          install_clang_tidy: true
+      - name: Generate the building system
+        run: |
+          cmake                                              \
+            -DCMAKE_BUILD_TYPE=${{ inputs.build_type }}      \
+            -DCMAKE_C_COMPILER=clang                         \
+            -DCMAKE_CXX_COMPILER=clang++                     \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON               \
+            -DCMAKE_CXX_CLANG_TIDY="clang-tidy-$CLANG_VERSION;--checks=${{ inputs.clang_tidy_checks }}" \
+            -G Ninja                            \
+            -B $BUILD_DIR                       \
+            -S .
+      - run: |
+          # see https://github.com/actions/toolkit/blob/main/docs/problem-matchers.md
+          echo "::add-matcher::.github/clang-tidy-matcher.json"
+      - name: clang-tidy
+        run: |
+          cmake --build $BUILD_DIR --target scylla
+      - run: |
+          echo "::remove-matcher owner=clang-tidy::"
