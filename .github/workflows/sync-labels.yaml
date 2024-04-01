@@ -11,9 +11,7 @@ jobs:
   label-sync:
     name:  Synchronize labels between PR and the issue(s) fixed by it
     runs-on: ubuntu-latest
-    permissions:
-      pull-requests: write
-      issues: write
+    permissions: write-all
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
