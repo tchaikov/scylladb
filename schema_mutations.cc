@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
+#include "utils/managed_bytes.hh"
 #include "schema_mutations.hh"
 #include "mutation/canonical_mutation.hh"
 #include "db/schema_tables.hh"
