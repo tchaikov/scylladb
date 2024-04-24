@@ -12,7 +12,6 @@
 
 #include "schema/schema.hh"
 
-#include <algorithm>
 #include <functional>
 
 namespace cql3 {
