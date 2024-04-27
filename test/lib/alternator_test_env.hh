@@ -12,7 +12,6 @@
 #include <seastar/core/future.hh>
 
 #include "alternator/executor.hh"
-#include "utils/rjson.hh"
 #include "db/system_distributed_keyspace.hh"
 #include "cdc/metadata.hh"
 

@@ -49,6 +49,7 @@
 #include <unordered_map>
 #include <tuple>
 #include <assert.h>
+#include <optional>
 
 #include <seastar/core/shared_ptr.hh>
 #include <seastar/core/sstring.hh>

@@ -13,7 +13,6 @@
 #include "test/lib/cql_assertions.hh"
 #include "test/lib/eventually.hh"
 #include "transport/messages/result_message.hh"
-#include "utils/to_string.hh"
 #include "bytes.hh"
 
 static inline void fail(sstring msg) {

@@ -7,6 +7,13 @@
  */
 
 #include "expr_test_utils.hh"
+#include "data_dictionary/keyspace_metadata.hh"
+#include "db/config.hh"
+#include "types/list.hh"
+#include "types/map.hh"
+#include "types/set.hh"
+#include "types/tuple.hh"
+#include "types/user.hh"
 #include <fmt/ranges.h>
 
 namespace cql3 {

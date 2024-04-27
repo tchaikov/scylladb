@@ -10,6 +10,7 @@
 #include "test/lib/scylla_test_case.hh"
 
 #include <vector>
+#include <fmt/ranges.h>
 
 #include <fmt/ranges.h>
 

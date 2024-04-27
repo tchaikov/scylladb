@@ -9,7 +9,8 @@
 #pragma once
 
 #include "readers/mutation_reader_fwd.hh"
-#include "test/lib/simple_schema.hh"
+#include "mutation/range_tombstone.hh"
+#include "test/lib/key_utils.hh"
 
 using populate_fn = std::function<mutation_source(schema_ptr s, const std::vector<mutation>&)>;
 using populate_fn_ex = std::function<mutation_source(schema_ptr s, const std::vector<mutation>&, gc_clock::time_point)>;

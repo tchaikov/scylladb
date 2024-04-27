@@ -14,11 +14,6 @@
 #include "cql3/selection/selection.hh"
 #include "data_dictionary/data_dictionary.hh"
 #include "data_dictionary/impl.hh"
-#include "data_dictionary/keyspace_metadata.hh"
-#include "db/config.hh"
-#include "types/list.hh"
-#include "types/map.hh"
-#include "types/set.hh"
 
 namespace cql3 {
 namespace expr {

@@ -22,7 +22,6 @@
 #include "mutation_query.hh"
 #include "mutation/mutation_rebuilder.hh"
 #include "test/lib/random_utils.hh"
-#include "cql3/cql3_type.hh"
 #include "test/lib/make_random_string.hh"
 #include "test/lib/data_model.hh"
 #include "test/lib/key_utils.hh"
