@@ -3051,10 +3051,6 @@ struct fmt::formatter<append_entry> {
     }
 };
 
-std::ostream& operator<<(std::ostream& os, const append_entry& e) {
-    return os << e.elem;
-}
-
 struct append_reg_model {
     using elem_t = typename append_entry::elem_t;
     using entry = append_entry;
