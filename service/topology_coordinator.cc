@@ -2268,7 +2268,7 @@ class topology_coordinator : public endpoint_lifecycle_subscriber {
         if (!unsupported_features.empty()) {
             rtlogger.warn("node {} does not understand some features: {}", node.id, unsupported_features);
             return join_node_response_params::rejected{
-                .reason = format("Feature check failed. The node does not support some features that are enabled by the cluster: {}",
+                .reason = seastar::format("Feature check failed. The node does not support some features that are enabled by the cluster: {}",
                         unsupported_features),
             };
         }
