@@ -328,7 +328,7 @@ functions::get(data_dictionary::database db,
             throw exceptions::invalid_request_exception("functions::get for token doesn't have a known column family");
         }
         if (schema == nullptr) {
-            throw exceptions::invalid_request_exception(format("functions::get for token cannot find {} table", *receiver_cf));
+            throw exceptions::invalid_request_exception(seastar::format("functions::get for token cannot find {} table", *receiver_cf));
         }
         auto fun = ::make_shared<token_fct>(schema);
         validate_types(db, keyspace, schema.get(), fun, provided_args, receiver_ks, receiver_cf);
