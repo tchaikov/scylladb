@@ -10,7 +10,6 @@
 #pragma once
 
 #include <boost/range/algorithm/find_if.hpp>
-#include <iostream>
 #include <unordered_set>
 #include <unordered_map>
 #include <seastar/core/condition-variable.hh>
