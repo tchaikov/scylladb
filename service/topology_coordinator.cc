@@ -824,7 +824,7 @@ class topology_coordinator : public endpoint_lifecycle_subscriber {
                     }
                 }
 
-                sstring reason = format("ALTER tablets KEYSPACE called with options: {}", saved_ks_props);
+                sstring reason = seastar::format("ALTER tablets KEYSPACE called with options: {}", saved_ks_props);
                 rtlogger.trace("do update {} reason {}", updates, reason);
                 mixed_change change{std::move(updates)};
                 group0_command g0_cmd = _group0.client().prepare_command(std::move(change), guard, reason);
