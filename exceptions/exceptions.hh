@@ -15,6 +15,8 @@
 #include "db/operation_type.hh"
 #include <concepts>
 #include <stdexcept>
+#include <vector>
+#include <list>
 #include <seastar/core/sstring.hh>
 #include "bytes.hh"
 
