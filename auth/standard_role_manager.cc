@@ -473,7 +473,7 @@ standard_role_manager::modify_membership(
         co_return co_await legacy_modify_membership(grantee_name, role_name, ch);
     }
 
-    const auto modify_roles = format(
+    const auto modify_roles = seastar::format(
             "UPDATE {}.{} SET member_of = member_of {} ? WHERE {} = ?",
             get_auth_ks_name(_qp),
             meta::roles_table::name,
@@ -485,12 +485,12 @@ standard_role_manager::modify_membership(
     sstring modify_role_members;
     switch (ch) {
     case membership_change::add:
-        modify_role_members = format("INSERT INTO {}.{} (role, member) VALUES (?, ?)",
+        modify_role_members = seastar::format("INSERT INTO {}.{} (role, member) VALUES (?, ?)",
                 get_auth_ks_name(_qp),
                 meta::role_members_table::name);
         break;
     case membership_change::remove:
-        modify_role_members = format("DELETE FROM {}.{} WHERE role = ? AND member = ?",
+        modify_role_members = seastar::format("DELETE FROM {}.{} WHERE role = ? AND member = ?",
                 get_auth_ks_name(_qp),
                 meta::role_members_table::name);
         break;

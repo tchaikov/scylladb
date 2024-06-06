@@ -357,7 +357,7 @@ future<> default_authorizer::revoke_all(const resource& resource, ::service::gro
 void default_authorizer::revoke_all_keyspace_resources(const resource& ks_resource, ::service::group0_batch& mc) {
     auto ks_name = ks_resource.name();
     auto gen = [this, ks_name] (api::timestamp_type t) -> ::service::mutations_generator {
-        const sstring query = format("SELECT {}, {} FROM {}.{}",
+        const sstring query = seastar::format("SELECT {}, {} FROM {}.{}",
                 ROLE_NAME,
                 RESOURCE_NAME,
                 get_auth_ks_name(_qp),
@@ -374,7 +374,7 @@ void default_authorizer::revoke_all_keyspace_resources(const resource& ks_resour
                 // r doesn't represent resource related to ks_resource
                 continue;
             }
-            const sstring query = format("DELETE FROM {}.{} WHERE {} = ? AND {} = ?",
+            const sstring query = seastar::format("DELETE FROM {}.{} WHERE {} = ? AND {} = ?",
                     get_auth_ks_name(_qp),
                     PERMISSIONS_CF,
                     ROLE_NAME,
