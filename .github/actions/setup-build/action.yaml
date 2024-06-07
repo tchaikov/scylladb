@@ -1,6 +1,13 @@
 name: setup-build-env
 description: Setup Building Environment
 inputs:
+  # be consistent with the caller workflow
+  clang_version:
+    description: 'clang version, see https://apt.llvm.org/'
+    required: false
+    # use the stable branch, empty for the development branch
+    default: 18
+    type: string
   install_clang_tool:
     description: 'install clang-tool'
     required: false
@@ -11,11 +18,6 @@ inputs:
     required: false
     default: false
     type: boolean
-
-# use the stable branch
-# should be the same as the one used by the compositing workflow
-env:
-  CLANG_VERSION: 18
 
 runs:
   using: 'composite'
@@ -32,9 +34,9 @@ runs:
         sudo apt-get install -y curl
         curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc >/dev/null
         repo_component=llvm-toolchain-jammy
-        # use the development branch if $CLANG_VERSION is empty
-        if [ -n "$CLANG_VERSION" ]; then
-            repo_component+=-$CLANG_VERSION
+        # use the development branch if clang_version is empty
+        if [ -n "${{ inputs.clang_version }}" ]; then
+            repo_component+=-${{ inputs.clang_version }}
         fi
         echo "deb http://apt.llvm.org/jammy/ $repo_component main" | sudo tee -a /etc/apt/sources.list.d/llvm.list
         sudo apt-get update
@@ -43,13 +45,21 @@ runs:
       if: ${{ inputs.install_clang_tools }}
       shell: bash
       run: |
-        sudo apt-get install -y clang-tools-$CLANG_VERSION
+        pkg=clang-tools
+        if [ -n "${{ inputs.clang_version }}" ]; then
+          pkg+=-${{ inputs.clang_version }}
+        fi
+        sudo apt-get install -y $pkg
 
     - name: Install clang-tidy
       if: ${{ inputs.install_clang_tidy }}
       shell: bash
       run: |
-        sudo apt-get install -y clang-tidy-$CLANG_VERSION
+        pkg=clang-tidy
+        if [ -n "${{ inputs.clang_version }}" ]; then
+          pkg+=-${{ inputs.clang_version }}
+        fi
+        sudo apt-get install -y $pkg
 
     - name: Install GCC-12
       # ubuntu:jammy comes with GCC-11. and libstdc++-11 fails to compile
@@ -75,7 +85,11 @@ runs:
         sudo ./install-dependencies.sh
         mv ./install-dependencies.sh{.orig,}
         # for ld.lld
-        sudo apt-get install -y lld-18
+        pkg=lld
+        if [ -n "${{ inputs.clang_version }}" ]; then
+          pkg+=-${{ inputs.clang_version }}
+        fi
+        sudo apt-get install -y $pkg
 
     - name: Install {fmt} using cooking.sh
       shell: bash

@@ -29,6 +29,7 @@ jobs:
           submodules: true
       - uses: ./.github/actions/setup-build
         with:
+          clang_version: 18
           install_clang_tool: true
       - name: Generate compilation database
         run: |
