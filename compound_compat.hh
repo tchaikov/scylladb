@@ -509,12 +509,6 @@ public:
         return _bytes;
     }
 
-    template <typename Component>
-    friend inline std::ostream& operator<<(std::ostream& os, const std::pair<Component, eoc>& c) {
-        fmt::print(os, "{}", c);
-        return os;
-    }
-
     struct tri_compare {
         const std::vector<data_type>& _types;
         tri_compare(const std::vector<data_type>& types) : _types(types) {}

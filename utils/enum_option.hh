@@ -143,9 +143,3 @@ struct fmt::formatter<enum_option<Mapper>> {
         }
     }
 };
-
-template <typename Mapper>
-std::ostream& operator<<(std::ostream& s, const enum_option<Mapper>& opt) {
-    fmt::print(s, "{}", opt);
-    return s;
-}

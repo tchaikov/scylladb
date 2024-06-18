@@ -1,7 +1,6 @@
 #pragma once
 #include <absl/container/btree_set.h>
 #include <cstdint>
-#include <ostream>
 #include <fmt/core.h>
 #include "schema/schema.hh"
 
@@ -22,9 +21,6 @@ public:
         hash ^= other.hash;
     }
     std::strong_ordering operator<=>(const repair_hash&) const = default;
-    friend std::ostream& operator<<(std::ostream& os, const repair_hash& x) {
-        return os << x.hash;
-    }
 };
 
 using repair_hash_set = absl::btree_set<repair_hash>;

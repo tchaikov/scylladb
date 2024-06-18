@@ -1060,11 +1060,6 @@ template <> struct fmt::formatter<db::schema_tables::table_kind> {
 namespace db {
 namespace schema_tables {
 
-static std::ostream& operator<<(std::ostream& os, table_kind k) {
-    fmt::print(os, "{}", k);
-    return os;
-}
-
 static constexpr std::initializer_list<table_kind> all_table_kinds = {
     table_kind::table,
     table_kind::view
