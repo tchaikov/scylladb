@@ -4,6 +4,9 @@ on:
   schedule:
     # 5AM every friday
     - cron: '0 5 * * FRI'
+  push:
+    branches:
+      - master
 
 permissions: {}
 
