@@ -35,6 +35,34 @@ def readable_desc_rst(description):
     return ''.join(cleaned_lines)
 
 
+def readable_default(value, type_):
+    # default values of options are extracted from source file, but the
+    # representation in source code of a certain value does not necessarily
+    # identical to its representation in scylla.yaml, sometimes the default
+    # value is not even a literal. strictly speaking, it is an expression,
+    # so a function call is also valid. we have to translate them on a
+    # case-by-case basis
+    if type_ == 'tri_mode_restriction':
+        if value == 'strict_allow_filtering_default()':
+            # see db/config.cc
+            #   strict_allow_filtering_default()
+            return "warn"
+        # see db/config.cc
+        #   db::tri_mode_restriction_t::map()
+        _, v = value.rsplit('::', 1)
+        return v.lower()
+    if type_ == 'seastar::log_level':
+        # see seastar/src/util/log.cc
+        #   log_level_names
+        _, v = value.rsplit('::', 1)
+        return v
+    if value == 'service::default_target_tablet_size':
+        # see service/tablet_allocator_fwd.hh
+        #   default_target_tablet_size
+        return 5 << 30
+    return value
+
+
 def maybe_add_filters(builder):
     env = builder.templates.environment
     if 'readable_desc' not in env.filters:
@@ -42,3 +70,6 @@ def maybe_add_filters(builder):
 
     if 'readable_desc_rst' not in env.filters:
         env.filters['readable_desc_rst'] = readable_desc_rst
+
+    if 'readable_default' not in env.filters:
+        env.filters['readable_default'] = readable_default
