@@ -31,7 +31,7 @@ setupenv:
 
 .PHONY: setup
 setup:
-	$(POETRY) install
+	$(POETRY) install --no-root
 	$(POETRY) update
 
 # Clean commands
