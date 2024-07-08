@@ -36,6 +36,8 @@ jobs:
     runs-on: ubuntu-latest
     container: ${{ needs.read-toolchain.image }}
     steps:
+      - run: |
+          echo ${{ needs.read-toolchain.image }}
       - uses: actions/checkout@v4
         with:
           submodules: true
