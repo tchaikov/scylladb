@@ -22,6 +22,7 @@ jobs:
     name: Build with clang nightly
     if: github.repository == 'scylladb/scylladb'
     runs-on: ubuntu-latest
+    if: github.repository == 'scylladb/scylladb'
     container: fedora:40
     strategy:
       matrix:
