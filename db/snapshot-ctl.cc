@@ -16,6 +16,7 @@
 #include <seastar/coroutine/parallel_for_each.hh>
 #include "db/snapshot-ctl.hh"
 #include "replica/database.hh"
+#include "db/snapshot/backup_task.hh"
 #include "sstables/sstables_manager.hh"
 
 logging::logger snap_log("snapshots");
@@ -131,6 +132,14 @@ future<int64_t> snapshot_ctl::true_snapshots_size() {
         }
         co_return total;
     }));
+}
+
+future<tasks::task_id> snapshot_ctl::start_backup(sstring endpoint, sstring bucket, sstring keyspace, sstring snapshot_name) {
+    auto cln = _storage_manager.get_endpoint_client(endpoint);
+    snap_log.info("Backup sstables from {}({}) to {}", keyspace, snapshot_name, endpoint);
+    auto task = co_await _task_manager_module->make_and_start_task<::db::snapshot::backup_task_impl>({}, *this, std::move(cln), std::move(bucket), keyspace, snapshot_name);
+    snap_log.info("`- started task {}", task->id());
+    co_return task->id();
 }
 
 future<int64_t> snapshot_ctl::true_snapshots_size(sstring ks, sstring cf) {
