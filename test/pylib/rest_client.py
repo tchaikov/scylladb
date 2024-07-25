@@ -311,6 +311,10 @@ class ScyllaRESTAPIClient():
         """Backup keyspace's snapshot"""
         return await self.client.post_json(f"/storage_service/backup?keyspace={ks}&endpoint={dest}&bucket={bucket}&snapshot={tag}", host=node_ip)
 
+    async def take_snapshot(self, node_ip: str, ks: str, tag: str) -> None:
+        """Take keyspace snapshot"""
+        await self.client.post(f"/storage_service/snapshots?kn={ks}&tag={tag}", host=node_ip)
+
     async def cleanup_keyspace(self, node_ip: str, ks: str) -> None:
         """Cleanup keyspace"""
         await self.client.post(f"/storage_service/keyspace_cleanup/{ks}", host=node_ip)
@@ -400,6 +404,12 @@ class ScyllaRESTAPIClient():
         data = await self.client.get_json(url, host=node_ip)
         assert(type(data) == list)
         return data
+
+    async def get_task_status(self, node_ip: str, task_id: str):
+        return await self.client.get_json(f'/task_manager/task_status/{task_id}', host=node_ip)
+
+    async def wait_task(self, node_ip: str, task_id: str):
+        return await self.client.get_json(f'/task_manager/wait_task/{task_id}', host=node_ip)
 
 class ScyllaMetrics:
     def __init__(self, lines: list[str]):
