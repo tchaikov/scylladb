@@ -58,7 +58,7 @@ future<std::string> get_key_from_roles(service::storage_proxy& proxy, auth::serv
     if (!can_login) {
         // This is a valid role name, but has "login=False" so should not be
         // usable for authentication (see #19735).
-        co_await coroutine::return_exception(api_error::unrecognized_client(format("Role {} has login=false so cannot be used for login", username)));
+        co_await coroutine::return_exception(api_error::unrecognized_client(fmt::format("Role {} has login=false so cannot be used for login", username)));
     }
     const managed_bytes_opt& salted_hash = result.front();
     if (!salted_hash) {
