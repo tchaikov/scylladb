@@ -60,6 +60,26 @@ Permits are in one of the following states:
 * `inactive` - the permit was marked inactive, it can be evicted to make room for admitting more permits if needed;
 * `evicted` - a former inactive permit which was evicted, the permit has to undergo admission again for the read to resume;
 
+The life cycle of a permit is illustrated as following state machine:
+
+```mermaid
+---
+reader_permit states
+---
+
+stateDiagram-v2
+    state 
+    [*] --> active
+    active --> inactive
+    waiting_for_memory --> inactive
+    inactive --> active_need_cpu: activated, when permit needs cpu
+    inactive --> active:
+    waiting_for_memory -> needs_cpu
+    needs_cpu --> is_state
+    
+    waiting_for_execution
+    inactive --> evicted: evicted to make room
+```
 Note that some older releases will have different names for some of these states or lack some of the states altogether:
 
 Changes in 5.3:
