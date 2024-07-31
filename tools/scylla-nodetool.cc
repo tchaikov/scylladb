@@ -365,6 +365,10 @@ using operation_func = void(*)(scylla_rest_client&, const bpo::variables_map&);
 
 std::map<operation, operation_func> get_operations_with_func();
 
+void backup_operation(scylla_rest_client& client, const bpo::variables_map& vm) {
+
+}
+
 void checkandrepaircdcstreams_operation(scylla_rest_client& client, const bpo::variables_map& vm) {
     client.post("/storage_service/cdc_streams_check_and_repair");
 }
@@ -2837,6 +2841,22 @@ const std::map<std::string_view, std::string_view> option_substitutions{
 std::map<operation, operation_func> get_operations_with_func() {
 
     const static std::map<operation, operation_func> operations_with_func {
+        {
+            {
+                "backup",
+                "copy SSTables from a specified keyspace's snapshot to a designated bucket in object storage",
+fmt::format(R"(
+)", doc_link("operating-scylla/nodetool-commands/backup.html")),
+                {
+                    typed_option<sstring>("keyspace", "Name of a keyspace to copy SSTables from"),
+                    typed_option<sstring>("snapshot", "Name of a snapshot to copy sstables from"),
+                    typed_option<sstring>("endpoint", "ID of the configured object storage endpoint to copy SSTables to"),
+                    typed_option<sstring>("bucket", "Name of the bucket to backup SSTables to"),
+                    typed_option<>("nowait", "Don't wait on the backup process"),
+                },
+            },
+            backup_operation
+        },
         {
             {
                 "checkAndRepairCdcStreams",
