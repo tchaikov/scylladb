@@ -5,6 +5,7 @@ target_sources(tools
     scylla-sstable.cc
     scylla-nodetool.cc
     schema_loader.cc
+    load_system_tablets.cc
     utils.cc
     lua_sstable_consumer.cc)
 target_include_directories(tools
