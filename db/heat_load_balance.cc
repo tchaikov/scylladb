@@ -285,20 +285,18 @@ redistribute(const std::vector<float>& p, unsigned me, unsigned k) {
         // We need a list of the mixed nodes sorted in increasing deficit order.
         // Actually, we only need to sort those nodes with deficit <=
         // min(deficit[me], mixed_surplus).
-        // TODO: use NlgN sort instead of this ridiculous N^2 implementation.
         // TODO: can we do this without a NlgN (although very small N, not even
         // the full rf)? Note also the distribution code below is N^2 anyway
         // (two nested for loops).
-        std::list<std::pair<unsigned, float>> sorted_deficits;
-        for (unsigned i = 0; i < rf; i++) {
-            if (deficit[i] && deficit[i] <= deficit[me] &&
-                    deficit[i] < mixed_surplus) {
-                auto it = sorted_deficits.begin();
-                while (it != sorted_deficits.end() && it->second < deficit[i])
-                    ++it;
-                sorted_deficits.insert(it, std::make_pair(i, deficit[i]));
-            }
-        }
+        auto sorted_deficits = std::views::iota(0u, rf)
+            | std::views::filter([&](unsigned i) {
+                return deficit[i] && deficit[i] <= deficit[me] && deficit[i] < mixed_surplus;
+            })
+            | std::views::transform([&](unsigned i) {
+                return std::make_pair(i, deficit[i]);
+            })
+            | std::ranges::to<std::vector>();
+        std::ranges::sort(sorted_deficits, [](const auto& a, const auto& b) { return a.second < b.second; });
         hr_logger.trace("sorted_deficits={}{}", sorted_deficits | std::views::keys, sorted_deficits | std::views::values);
         float s = 0;
         int count = mixed_count;
