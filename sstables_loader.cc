@@ -401,7 +401,7 @@ future<> sstable_streamer::stream_sstable_mutations(streaming::plan_id ops_uuid,
     }
     co_await reader.close();
     try {
-        co_await coroutine::parallel_for_each(metas.begin(), metas.end(), [failed] (std::pair<const locator::host_id, send_meta_data>& pair) {
+        co_await coroutine::parallel_for_each(metas, [failed] (std::pair<const locator::host_id, send_meta_data>& pair) {
             auto& meta = pair.second;
             return meta.finish(failed);
         });
