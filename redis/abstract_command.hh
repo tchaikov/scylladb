@@ -7,17 +7,8 @@
  */
 
 #pragma once
-#include "bytes.hh"
 #include <seastar/core/future.hh>
-#include <seastar/core/sstring.hh>
-#include "redis/request.hh"
 #include "redis/reply.hh"
-#include "db/consistency_level_type.hh"
-#include "db/timeout_clock.hh"
-#include "db/system_keyspace.hh"
-#include "keys.hh"
-#include "timestamp.hh"
-#include <unordered_map>
 
 class service_permit;
 
