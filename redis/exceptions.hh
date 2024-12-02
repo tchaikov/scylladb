@@ -8,9 +8,9 @@
 
 #pragma once
 
-#include <seastar/core/format.hh>
+#include <fmt/format.h>
 
-#include "bytes.hh"
+#include "bytes_fwd.hh"
 
 #include "seastarx.hh"
 
