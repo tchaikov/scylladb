@@ -402,6 +402,8 @@ class load_balancer {
         host_id id;
         uint64_t shard_count = 0;
         uint64_t tablet_count = 0;
+        // tablets are being drained from this node, because the node is being
+        // decomissioned or removed
         bool drained = false;
         const locator::node* node; // never nullptr
 
