@@ -2333,10 +2333,11 @@ public:
             // replicas for more tablets which rules out more candidates on other nodes with a higher per-shard load.
             //
             // Example:
-            //
-            //   node1: 1 shard
-            //   node2: 1 shard
-            //   node3: 7 shard
+            //                            s1            s2   s3   s4   s5   s6   s7
+            //                   |--------------------|----|----|----|----|----|----|
+            //   node1: 1 shard: |t1|t2|t3|t4|t5|t6|t7| // | // | // | // | // | // |
+            //   node2: 1 shard: |t1|t2|t3|t4|t5|t6|t7| // | // | // | // | // | // |
+            //   node3: 7 shard: |          t1        | t2 | t3 | t4 | t5 | t6 | t7 |
             //
             // If there are 7 tablets and RF=3, each node must have 1 tablet replica.
             // So node3 will have average load of 1, and node1 and node2 will have
