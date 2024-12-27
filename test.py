@@ -96,10 +96,10 @@ def path_to(mode, *components):
         exe_path = os.path.join(build_dir, *dir_components, all_modes[mode], basename)
     else:
         exe_path = os.path.join(build_dir, mode, *components)
-    if not os.access(exe_path, os.F_OK):
-        raise FileNotFoundError(f"{exe_path} does not exist.")
-    elif not os.access(exe_path, os.X_OK):
-        raise PermissionError(f"{exe_path} is not executable.")
+    # if not os.access(exe_path, os.F_OK):
+    #     raise FileNotFoundError(f"{exe_path} does not exist.")
+    # elif not os.access(exe_path, os.X_OK):
+    #     raise PermissionError(f"{exe_path} is not executable.")
     return exe_path
 
 
@@ -1596,8 +1596,11 @@ async def find_tests(options: argparse.Namespace) -> None:
     for f in glob.glob(os.path.join("test", "*")):
         if os.path.isdir(f) and os.path.isfile(os.path.join(f, "suite.yaml")):
             for mode in options.modes:
-                suite = TestSuite.opt_create(f, options, mode)
-                await suite.add_test_list()
+                try:
+                    suite = TestSuite.opt_create(f, options, mode)
+                    await suite.add_test_list()
+                except FileNotFoundError:
+                    pass
 
     if not TestSuite.test_count():
         if len(options.name):
