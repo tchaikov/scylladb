@@ -96,7 +96,7 @@ sstring to_printable_string(const compound_type<AllowPrefixes>& type, bytes_view
     for (size_t i = 0; i != values.size(); ++i) {
         printable_values.emplace_back(types.at(i)->to_string(values.at(i)));
     }
-    return format("({})", boost::algorithm::join(printable_values, ", "));
+    return format("({})", fmt::join(printable_values, ", "));
 }
 
 struct printing_visitor {

@@ -589,7 +589,7 @@ future<> group0_batch::commit(::service::raft_group0_client& group0_client, seas
     if (!_guard) {
         on_internal_error(logger, "group0_batch: trying to announce without guard");
     }
-    auto description = boost::algorithm::join(_descriptions, "; ");
+    auto description = fmt::to_string(fmt::join(_descriptions, "; "));
     // common case, don't bother with generators as we would have only 1-2 mutations,
     // when producer expects substantial number or size of mutations it should use generator
     if (_generators.size() == 0) {

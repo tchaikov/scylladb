@@ -148,7 +148,7 @@ resource::resource(functions_resource_t, std::string_view keyspace, std::string_
 }
 
 sstring resource::name() const {
-    return boost::algorithm::join(_parts, "/");
+    return fmt::to_string(fmt::join(_parts, "/"));
 }
 
 std::optional<resource> resource::parent() const {

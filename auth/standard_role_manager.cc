@@ -330,7 +330,7 @@ standard_role_manager::alter(std::string_view role_name, const role_config_updat
             assignments.push_back(sstring("can_login = ") + (*u.can_login ? "true" : "false"));
         }
 
-        return boost::algorithm::join(assignments, ", ");
+        return fmt::to_string(fmt::join(assignments, ", "));
     };
 
     return require_record(_qp, role_name).then([this, role_name, &u, &mc](record) {

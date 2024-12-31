@@ -356,7 +356,7 @@ void table_description::rename_clustering_column(const sstring& from, const sstr
 
 table_description::table table_description::build() const {
     auto s = build_schema();
-    return { boost::algorithm::join(_change_log, "\n"), s, build_mutations(s) };
+    return { seastar::to_sstring(fmt::join(_change_log, "\n")), s, build_mutations(s) };
 }
 
 }
