@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <ostream>
 #include <fmt/core.h>
+#include "schema/schema_fwd.hh"
 
 class decorated_key_with_hash;
 class mutation_fragment;
