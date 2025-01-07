@@ -11,7 +11,6 @@
 #include "utils/assert.hh"
 #include <seastar/core/future.hh>
 #include <seastar/core/sleep.hh>
-#include <seastar/core/seastar.hh>
 #include <seastar/core/smp.hh>
 #include <seastar/core/condition-variable.hh>
 #include <seastar/core/on_internal_error.hh>

@@ -11,6 +11,7 @@
 #include "cql3/cql_statement.hh"
 #include "utils/to_string.hh"
 #include <seastar/core/format.hh>
+#include <fmt/std.h>
 
 namespace cql_transport::messages {
 

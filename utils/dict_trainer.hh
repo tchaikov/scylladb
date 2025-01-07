@@ -8,8 +8,6 @@
 
 #pragma once
 
-#include "seastar/core/sharded.hh"
-#include "utils/enum_option.hh"
 #include "utils/reservoir_sampling.hh"
 #include "utils/updateable_value.hh"
 #include <seastar/core/future.hh>

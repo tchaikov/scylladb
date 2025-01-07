@@ -9,11 +9,11 @@
 #pragma once
 
 #include "multiprecision_int.hh"
-#include <boost/multiprecision/cpp_int.hpp>
+#include <seastar/core/sstring.hh>
 #include <compare>
 #include <concepts>
 
-#include "bytes.hh"
+using seastar::sstring;
 
 uint64_t from_varint_to_integer(const utils::multiprecision_int& varint);
 
