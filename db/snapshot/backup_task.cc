@@ -7,6 +7,7 @@
  * SPDX-License-Identifier: LicenseRef-ScyllaDB-Source-Available-1.0
  */
 
+#include <seastar/core/seastar.hh>
 #include <seastar/coroutine/maybe_yield.hh>
 
 #include "utils/lister.hh"
@@ -97,7 +98,12 @@ future<> backup_task_impl::do_backup() {
         // Parallelism is implicitly controlled in two ways:
         //  - s3::client::claim_memory semaphore
         //  - http::client::max_connections limitation
-        std::ignore = _client->upload_file(component_name, destination, _progress, &_as).handle_exception([comp = component_name, &ex] (std::exception_ptr e) {
+        std::ignore = _client->upload_file(component_name, destination, _progress, &_as).then([component_name] {
+            // Delete the uploaded component to:
+            // 1. Free up disk space immediately
+            // 2. Avoid costly S3 existence checks on future backup attempts
+            return remove_file(component_name.native());
+        }).handle_exception([comp = component_name, &ex] (std::exception_ptr e) {
             snap_log.error("Error uploading {}: {}", comp.native(), e);
             // keep the first exception
             if (!ex) {
@@ -120,7 +126,9 @@ future<> backup_task_impl::do_backup() {
 }
 
 future<> backup_task_impl::run() {
-    co_await _snap_ctl.run_snapshot_list_operation([this] {
+    // do_backup() removes a file once it is fully uploaded, so we are actually
+    // mutating snapshots.
+    co_await _snap_ctl.run_snapshot_modify_operation([this] {
         return do_backup();
     });
     snap_log.info("Finished backup");
