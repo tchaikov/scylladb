@@ -3056,6 +3056,9 @@ future<> table::flush(std::optional<db::replay_position> pos) {
     if (pos && *pos < _flush_rp) {
         co_return;
     }
+    if (_pending_flushes_phaser.is_closed()) {
+        co_return;
+    }
     auto op = _pending_flushes_phaser.start();
     auto fp = _highest_rp;
     co_await parallel_foreach_compaction_group(std::mem_fn(&compaction_group::flush));
