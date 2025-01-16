@@ -6,6 +6,10 @@ function(add_perf_test name)
     ${ARGN})
   set(src "${name}.cc")
   add_executable(${name} ${src})
+  set_target_properties(${name}
+    PROPERTIES
+     JOB_POOL_LINK "$<IF:$<CONFIG:RelWithDebInfo>,link_pool_release,link_pool_default>")
+
   target_include_directories(${name}
     PRIVATE
       ${CMAKE_SOURCE_DIR})

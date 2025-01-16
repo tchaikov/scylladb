@@ -42,6 +42,9 @@ function(add_scylla_test name)
     set(src "${name}.cc")
   endif()
   add_executable(${name} ${src})
+  set_target_properties(${name}
+    PROPERTIES
+     JOB_POOL_LINK "$<IF:$<CONFIG:RelWithDebInfo>,link_pool_release,link_pool_default>")
   add_dependencies(tests ${name})
 
   cmake_path(RELATIVE_PATH CMAKE_CURRENT_SOURCE_DIR

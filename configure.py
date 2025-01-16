@@ -1649,7 +1649,13 @@ defines = ' '.join(['-D' + d for d in defines])
 globals().update(vars(args))
 
 total_memory = os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES')
-link_pool_depth = max(int(total_memory / 7e9), 1)
+# assuming each link job takes around 7GiB of memory
+link_pool_depth_default = max(int(total_memory / 7e9), 1)
+# Each Release build link job with PGO and LTO can consume up to 18 GiB of memory.
+# To prevent memory exhaustion, we limit parallel link jobs to:
+# floor(total_memory / 18 GiB).
+# For a system with 64 GiB RAM, this allows up to 3 concurrent link jobs.
+link_pool_depth_release = max(int(total_memory / 18e9), 1)
 
 selected_modes = args.selected_modes or modes.keys()
 default_modes = args.selected_modes or [mode for mode, mode_cfg in modes.items() if mode_cfg["default"]]
@@ -1750,12 +1756,16 @@ def prepare_advanced_optimizations(*, modes, build_modes, args):
     for mode in modes:
         modes[mode]['has_lto'] = False
         modes[mode]['is_profile'] = False
+        modes[mode]['link_pool'] = 'link_pool_default'
 
     profile_modes = {}
 
     for mode in modes:
         if not modes[mode]['advanced_optimizations']:
             continue
+
+        # use dedicated pool to mitigate OOM when linking for release build
+        modes[mode]['link_pool'] = 'link_pool_release'
 
         # When building with PGO, -Wbackend-plugin generates a warning for every
         # function which changed its control flow graph since the profile was
@@ -2165,8 +2175,10 @@ def write_build_file(f,
         ldflags = {linker_flags} {user_ldflags}
         ldflags_build = {linker_flags}
         libs = {libs}
-        pool link_pool
-            depth = {link_pool_depth}
+        pool link_pool_default
+            depth = {link_pool_depth_default}
+        pool link_pool_release
+            depth = {link_pool_depth_release}
         pool submodule_pool
             depth = 1
         rule gen
@@ -2242,7 +2254,8 @@ def write_build_file(f,
                     linker_flags=linker_flags,
                     user_ldflags=user_ldflags,
                     libs=libs,
-                    link_pool_depth=link_pool_depth,
+                    link_pool_depth_default=link_pool_depth_default,
+                    link_pool_depth_release=link_pool_depth_release,
                     seastar_path=args.seastar_path,
                     ninja=ninja,
                     ragel_exec=args.ragel_exec))
@@ -2276,15 +2289,15 @@ def write_build_file(f,
             rule link.{mode}
               command = $cxx  $ld_flags_{mode} $ldflags -o $out $in $libs $libs_{mode}
               description = LINK $out
-              pool = link_pool
+              pool = {link_pool}
             rule link_stripped.{mode}
               command = $cxx  $ld_flags_{mode} -s $ldflags -o $out $in $libs $libs_{mode}
               description = LINK (stripped) $out
-              pool = link_pool
+              pool = {link_pool}
             rule link_build.{mode}
               command = $cxx  $ld_flags_{mode} $ldflags_build -o $out $in $libs $libs_{mode}
               description = LINK (build) $out
-              pool = link_pool
+              pool = {link_pool}
             rule ar.{mode}
               command = rm -f $out; ar cr $out $in; ranlib $out
               description = AR $out

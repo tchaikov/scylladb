@@ -299,6 +299,17 @@ add_version_library(scylla_version
 
 add_executable(scylla
   main.cc)
+
+if(is_multi_config)
+    if(RelWithDebInfo IN_LIST CMAKE_CONFIGURATION_TYPES)
+        set_target_properties(scylla
+          PROPERTIES JOB_POOL_LINK link_pool_release)
+    else()
+        set_target_properties(scylla
+          PROPERTIES JOB_POOL_LINK link_pool_release)
+    endif()
+endif()
+
 set(scylla_libs
     scylla-main
     api
