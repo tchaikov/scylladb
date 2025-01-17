@@ -205,6 +205,8 @@ add_scylla_test(aws_errors_test
   KIND BOOST)
 add_scylla_test(aws_error_injection_test
   KIND SEASTAR)
+add_scylla_test(ranges_test
+  KIND BOOST)
 add_scylla_test(schema_changes_test
   KIND SEASTAR)
 add_scylla_test(schema_loader_test
