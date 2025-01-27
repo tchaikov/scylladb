@@ -119,6 +119,9 @@ config_from_string(std::string_view value) {
 template <>
 sstring
 config_from_string(std::string_view value) {
+    // boost::lexical_cast fails when an input stream reaches EOF, incorrectly
+    // indicating parsing failure even for valid empty string conversions. so we have
+    // to specialize for sstring.
     return sstring(value);
 }
 
