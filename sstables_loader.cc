@@ -8,6 +8,7 @@
 
 #include <fmt/ranges.h>
 #include <seastar/core/coroutine.hh>
+#include <seastar/core/map_reduce.hh>
 #include <seastar/core/shared_ptr.hh>
 #include <seastar/coroutine/maybe_yield.hh>
 #include <seastar/coroutine/switch_to.hh>
@@ -581,7 +582,14 @@ class sstables_loader::download_task_impl : public tasks::task_manager::task::im
     sstring _prefix;
     sstables_loader::stream_scope _scope;
     std::vector<sstring> _sstables;
-    std::vector<shared_ptr<stream_progress>> _progress_per_shard;
+    struct progress_holder {
+        // use a dedicated stream_progress type and wrap it with a smart pointer,
+        // so that we can inherit from the progress type, and pass a pointer to the
+        // derived type down when tracking the progress at per-tablet level.
+        shared_ptr<stream_progress> progress = make_shared<stream_progress>();
+    };
+    sharded<progress_holder> _progress_per_shard;
+    std::optional<tasks::task_manager::task::progress> _final_progress;
 
 protected:
     virtual future<> run() override;
@@ -599,7 +607,6 @@ public:
         , _prefix(std::move(prefix))
         , _scope(scope)
         , _sstables(std::move(sstables))
-        , _progress_per_shard(smp::count)
     {
         _status.progress_units = "batches";
     }
@@ -620,29 +627,23 @@ public:
         return tasks::is_abortable::yes;
     }
 
+    virtual future<> release_resources() noexcept override {
+        // preserve the final progress, so we can access it after the task is
+        // finished
+        _final_progress = co_await get_progress();
+        co_await _progress_per_shard.stop();
+    }
+
     virtual future<tasks::task_manager::task::progress> get_progress() const override {
-        struct adder {
-            stream_progress result;
-            future<> operator()(stream_progress p) {
-                llog.debug("get_progress: {} / {}", p.completed, p.total);
-                result.completed += p.completed;
-                result.total += p.total;
-                return make_ready_future<>();
-            }
-            stream_progress get() const {
-                return result;
-            }
-        };
-        auto p = co_await _loader.map_reduce(
-            adder{},
-            [this] (auto&) -> stream_progress {
-              auto p = _progress_per_shard[this_shard_id()];
-              if (p) {
-                  return *p;
-              } else {
-                  // the task was aborted
-                  return {};
-              }
+        if (_final_progress.has_value()) {
+            co_return _final_progress.value();
+        }
+        auto p = co_await _progress_per_shard.map_reduce(
+            adder<stream_progress>{},
+            [] (const progress_holder& holder) -> stream_progress {
+              auto p = holder.progress;
+              SCYLLA_ASSERT(p);
+              return *p;
             });
         co_return tasks::task_manager::task::progress {
             .completed = p.completed,
@@ -678,6 +679,7 @@ future<> sstables_loader::download_task_impl::run() {
             } catch (...) {
             }
         });
+        co_await _progress_per_shard.start();
         co_await _loader.invoke_on_all([this, &sstables_on_shards, table_id] (sstables_loader& loader) mutable -> future<> {
             auto progress = make_shared<stream_progress>();
             _progress_per_shard[this_shard_id()] = progress;
