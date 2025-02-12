@@ -588,6 +588,8 @@ class sstables_loader::download_task_impl : public tasks::task_manager::task::im
         // derived type down when tracking the progress at per-tablet level.
         shared_ptr<stream_progress> progress = make_shared<stream_progress>();
     };
+    using progress_initialized = bool_class<struct progress_initialized_tag>;
+    progress_initialized _progress_initialized;
     sharded<progress_holder> _progress_per_shard;
     std::optional<tasks::task_manager::task::progress> _final_progress;
 
@@ -635,6 +637,9 @@ public:
     }
 
     virtual future<tasks::task_manager::task::progress> get_progress() const override {
+        if (!_progress_initialized) {
+            co_return {};
+        }
         if (_final_progress.has_value()) {
             co_return _final_progress.value();
         }
@@ -680,6 +685,7 @@ future<> sstables_loader::download_task_impl::run() {
             }
         });
         co_await _progress_per_shard.start();
+        _progress_initialized = progress_initialized::yes;
         co_await _loader.invoke_on_all([this, &sstables_on_shards, table_id] (sstables_loader& loader) mutable -> future<> {
             auto progress = make_shared<stream_progress>();
             _progress_per_shard[this_shard_id()] = progress;
