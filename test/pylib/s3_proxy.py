@@ -242,7 +242,7 @@ class S3ProxyServer:
             os.environ[key] = value
 
     def _unset_environ(self):
-        for key in self.envs.keys():
+        for key in self.envs:
             del os.environ[key]
 
     def get_envs_settings(self):
